@@ -2,8 +2,6 @@
 
 A collection of AI agent skills for software engineering workflows — code quality reviews, living documentation, and security audits. Built for developers and engineering teams who want Claude Code to apply expert-level analysis to their codebases.
 
-**Contributions welcome!** Have a skill to add or improvements to suggest? [Open a PR](#contributing).
-
 ## What are Skills?
 
 Skills are Markdown files that give AI agents specialized knowledge, workflows, and output templates for specific tasks. When installed, Claude Code recognizes relevant requests and applies the skill automatically — no manual prompting required.
@@ -89,18 +87,6 @@ You can also invoke skills directly:
 
 ### Security
 - `vulnerability-scan` — Combines automated Semgrep scanning with a manual review checklist covering OWASP Top 10. Triages true positives from false positives and includes a dependency CVE audit.
-
-## Contributing
-
-Found a way to improve a skill? Have a new one to add? PRs and issues welcome.
-
-**To add a new skill:**
-
-1. Run `python init_skill.py <skill-name> --path skills/`
-2. Edit `skills/<skill-name>/SKILL.md` — fill in `description` and the skill body
-3. Remove unused `scripts/`, `references/`, `assets/` directories if created
-4. Validate with `python package_skill.py skills/<skill-name>`
-5. Add a row to the table in this README
 
 ## License
 
