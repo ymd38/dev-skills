@@ -21,7 +21,7 @@ Skills are Markdown files that give AI agents specialized knowledge, workflows, 
 ### Option 1: CLI Install (Recommended)
 
 ```bash
-npx skills add ymd38/agent-skills
+npx skills add ymd38/dev-skills
 ```
 
 This automatically installs all skills to your project's `.claude/skills/` directory.
@@ -29,7 +29,7 @@ This automatically installs all skills to your project's `.claude/skills/` direc
 To install a single skill:
 
 ```bash
-npx skills add ymd38/agent-skills --skill spec-doc
+npx skills add ymd38/dev-skills --skill spec-doc
 ```
 
 ### Option 2: Manual Copy
@@ -51,10 +51,10 @@ cp -r skills/* .claude/skills/
 Add as a submodule to keep skills up to date with upstream changes:
 
 ```bash
-git submodule add https://github.com/ymd38/agent-skills.git .claude/agent-skills
+git submodule add https://github.com/ymd38/dev-skills.git .claude/dev-skills
 ```
 
-Then reference skills from `.claude/agent-skills/skills/`.
+Then reference skills from `.claude/dev-skills/skills/`.
 
 ## Usage
 
