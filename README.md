@@ -13,6 +13,7 @@ Skills are Markdown files that give AI agents specialized knowledge, workflows, 
 | [spec-doc](skills/spec-doc/SKILL.md) | Generate or sync a "Living Specification" from source code to eliminate doc-code drift. Use when creating, updating, or reviewing architecture documentation for a directory or module. |
 | [software-evaluation](skills/software-evaluation/SKILL.md) | Evaluate code quality across five pillars (Architecture, Reliability, Observability, Security, DX) and produce a 1–10 scorecard with a strategic improvement roadmap. |
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Run an OWASP-based offensive security audit using Semgrep and produce a read-only vulnerability report with severity ratings and remediation recommendations. |
+| [report-to-issues](skills/report-to-issues/SKILL.md) | Parse reports from software-evaluation or vulnerability-scan, interactively select tasks, and register them as GitHub Issues using the `gh` CLI. |
 
 ## Installation
 
@@ -67,6 +68,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 
 "Scan src/ for security vulnerabilities"
 → Uses vulnerability-scan skill
+
+"Create GitHub Issues from docs/evaluation/myapp.20260406.md"
+→ Uses report-to-issues skill
 ```
 
 You can also invoke skills directly:
@@ -75,6 +79,7 @@ You can also invoke skills directly:
 /spec-doc src/
 /software-evaluation src/backend/
 /vulnerability-scan src/
+/report-to-issues docs/evaluation/myapp.20260406.md
 ```
 
 ## Skill Categories
@@ -87,6 +92,9 @@ You can also invoke skills directly:
 
 ### Security
 - `vulnerability-scan` — Combines automated Semgrep scanning with a manual review checklist covering OWASP Top 10. Triages true positives from false positives and includes a dependency CVE audit.
+
+### Issue Management
+- `report-to-issues` — Decomposes evaluation or security-audit reports into actionable tasks, presents them for user selection, and registers the chosen items as GitHub Issues with appropriate labels and priority.
 
 ## License
 
