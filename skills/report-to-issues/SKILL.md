@@ -84,7 +84,7 @@ Before creating issues, verify required labels exist. Required labels:
 
 Check and create missing labels:
 
-```bash
+```
 gh label list --json name | jq -r '.[].name'
 gh label create "<label>" --color "<hex>" --description "<desc>"
 ```
@@ -93,18 +93,10 @@ gh label create "<label>" --color "<hex>" --description "<desc>"
 
 ### Phase 5: Create Issues
 
-For each selected task, write the body to a temp file then create the issue:
+For each selected task, create the issue using the `gh` CLI `--body` flag with the formatted content:
 
-```bash
-cat > /tmp/issue_body.md << 'EOF'
-<body markdown>
-EOF
-
-gh issue create \
-  --title "<title>" \
-  --body-file /tmp/issue_body.md \
-  --label "<label1>" \
-  --label "<label2>"
+```
+gh issue create --title "<title>" --body "<body>" --label "<label1>" --label "<label2>"
 ```
 
 **Title format**:
