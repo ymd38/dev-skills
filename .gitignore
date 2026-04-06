@@ -1,0 +1,7 @@
+*.skill
+__pycache__/
+.DS_Store
+slash-commands/
+settings.local.json
+.claude/
+CLAUDE.md

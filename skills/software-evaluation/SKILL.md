@@ -203,7 +203,7 @@ Before writing the report, verify:
 - [ ] P0 blockers are explicitly called out in the Executive Summary
 - [ ] Roadmap items are concrete (specific files/functions named, not general advice)
 - [ ] Stack context is acknowledged (prototype vs. production, team size)
-- [ ] Output file path follows the naming convention: `docs/evaluation.[directory_name].YYYYMMDD.md`
+- [ ] Output file path follows the naming convention: `docs/evaluation/[directory_name].YYYYMMDD.md`
 
 ---
 
