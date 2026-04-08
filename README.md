@@ -14,6 +14,7 @@ Skills are Markdown files that give AI agents specialized knowledge, workflows, 
 | [software-evaluation](skills/software-evaluation/SKILL.md) | Evaluate code quality across five pillars (Architecture, Reliability, Observability, Security, DX) and produce a 1–10 scorecard with a strategic improvement roadmap. |
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Run an OWASP-based offensive security audit using Semgrep and produce a read-only vulnerability report with severity ratings and remediation recommendations. |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | Parse reports from software-evaluation or vulnerability-scan, interactively select tasks, and register them as GitHub Issues using the `gh` CLI. |
+| [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | Fetch a GitHub Issue by ID, investigate related code, and propose a structured response plan (approach, impact scope, implementation steps) before proceeding to implementation. |
 
 ## Installation
 
@@ -71,6 +72,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 
 "Create GitHub Issues from docs/evaluation/myapp.20260406.md"
 → Uses report-to-issues skill
+
+"Fix issue #42" / "Issue #42を対応して"
+→ Uses gh-issue-resolver skill
 ```
 
 You can also invoke skills directly:
@@ -80,6 +84,7 @@ You can also invoke skills directly:
 /software-evaluation src/backend/
 /vulnerability-scan src/
 /report-to-issues docs/evaluation/myapp.20260406.md
+/gh-issue-resolver
 ```
 
 ## Skill Categories
@@ -95,6 +100,7 @@ You can also invoke skills directly:
 
 ### Issue Management
 - `report-to-issues` — Decomposes evaluation or security-audit reports into actionable tasks, presents them for user selection, and registers the chosen items as GitHub Issues with appropriate labels and priority.
+- `gh-issue-resolver` — Fetches a GitHub Issue via `gh` CLI, classifies it (bug/feature/refactor/docs), searches related code, and presents a structured plan (approach, impact scope, steps, open questions). Posts the agreed plan as an issue comment before implementation.
 
 ## License
 
