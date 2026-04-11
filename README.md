@@ -13,19 +13,23 @@ These skills form a continuous improvement loop for your codebase:
 ```mermaid
 graph LR
     Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan"]
+    Visualize["📊 Visualize<br/>progress-dashboard"]
     Register["📋 Register Issues<br/>report-to-issues"]
     Resolve["🛠️ Resolve<br/>gh-issue-resolver"]
     Verify["✅ Verify<br/>Re-run diagnosis"]
 
+    Diagnose -- "Reports + JSON" --> Visualize
     Diagnose -- "Reports" --> Register
     Register -- "GitHub Issues" --> Resolve
     Resolve -- "PR + Code Changes" --> Verify
     Verify -- "Confirm fix / Next cycle" --> Diagnose
+    Visualize -. "Track trends" .-> Verify
 ```
 
 | Step | Skill | What happens |
 |------|-------|-------------|
-| **Diagnose** | `software-evaluation`, `vulnerability-scan` | Evaluate code quality and security, produce reports |
+| **Diagnose** | `software-evaluation`, `vulnerability-scan` | Evaluate code quality and security, produce reports + JSON summaries |
+| **Visualize** | `progress-dashboard` | Generate an interactive HTML dashboard from JSON summaries to track improvement trends |
 | **Register** | `report-to-issues` | Parse reports, deduplicate against existing issues, create GitHub Issues |
 | **Resolve** | `gh-issue-resolver` | Investigate issue, plan, implement, create PR |
 | **Verify** | Re-run `software-evaluation` or `vulnerability-scan` | Confirm the fix resolves the finding, close the loop |
@@ -41,6 +45,7 @@ graph LR
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Run an OWASP-based offensive security audit using Semgrep and produce a read-only vulnerability report with severity ratings and remediation recommendations. |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | Parse reports from software-evaluation or vulnerability-scan, interactively select tasks, and register them as GitHub Issues using the `gh` CLI. |
 | [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | Fetch a GitHub Issue by ID, investigate related code, and propose a structured response plan (approach, impact scope, implementation steps) before proceeding to implementation. |
+| [progress-dashboard](skills/progress-dashboard/SKILL.md) | Generate an interactive HTML dashboard that visualizes quality scores and security findings over time from JSON summaries. |
 
 ## Installation
 
@@ -101,6 +106,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 
 "Fix issue #42" / "Issue #42を対応して"
 → Uses gh-issue-resolver skill
+
+"Generate a progress dashboard" / "Show improvement trends"
+→ Uses progress-dashboard skill
 ```
 
 You can also invoke skills directly:
@@ -111,6 +119,7 @@ You can also invoke skills directly:
 /vulnerability-scan src/
 /report-to-issues docs/evaluation/myapp.20260406.md
 /gh-issue-resolver
+/progress-dashboard
 ```
 
 ## Skill Categories
@@ -124,9 +133,28 @@ You can also invoke skills directly:
 ### Security
 - `vulnerability-scan` — Combines automated Semgrep scanning with a manual review checklist covering OWASP Top 10. Triages true positives from false positives and includes a dependency CVE audit.
 
+### Visualization
+- `progress-dashboard` — Reads JSON summaries from `software-evaluation` and `vulnerability-scan`, then generates a self-contained HTML dashboard with quality score trends, radar charts, security findings trends, roadmap progress, and dependency risk panels.
+
 ### Issue Management
 - `report-to-issues` — Decomposes evaluation or security-audit reports into actionable tasks, presents them for user selection, and registers the chosen items as GitHub Issues with appropriate labels and priority.
 - `gh-issue-resolver` — Fetches a GitHub Issue via `gh` CLI, classifies it (bug/feature/refactor/docs), searches related code, and presents a structured plan (approach, impact scope, steps, open questions). Posts the agreed plan as an issue comment before implementation.
+
+## Progress Dashboard Preview
+
+![Progress Dashboard](examples/progress-dashboard/dashboard.png)
+
+> Sample dashboard generated from 3 months of evaluation and security scan data. Open `examples/progress-dashboard/dashboard.html` in a browser to try it interactively.
+
+## Examples
+
+The `examples/progress-dashboard/` directory contains working sample data:
+
+| File | Description |
+|------|-------------|
+| `evaluation/my-app.*.json` | 3 months of software-evaluation JSON summaries (Feb–Apr 2026) |
+| `security-audit/my-app.*.json` | 3 months of vulnerability-scan JSON summaries (Feb–Apr 2026) |
+| `dashboard.html` | Self-contained HTML dashboard with Chart.js — open in any browser |
 
 ## License
 
