@@ -112,7 +112,78 @@ EOF
 )"
 ```
 
-Then proceed to implementation.
+Then proceed to Step 7.
+
+### Step 7: Implement
+
+**7.1 Branch strategy:**
+
+```bash
+# Create a feature branch from the default branch
+git checkout -b fix/<id>-<short-description>
+# Examples: fix/42-add-timeout-to-fetch, feat/15-user-export-api
+```
+
+Branch naming convention:
+- Bug fixes: `fix/<id>-<short-description>`
+- Features: `feat/<id>-<short-description>`
+- Refactors: `refactor/<id>-<short-description>`
+
+**7.2 Implementation:**
+
+Apply the changes defined in the agreed plan. Follow these rules:
+- Make minimal, focused changes — do not scope-creep beyond the issue
+- Run existing tests after each logical change to catch regressions early
+- Add or update tests to cover the changed behavior
+
+**7.3 Test verification:**
+
+```bash
+# Run tests relevant to the changed area
+# Ensure no regressions in existing tests
+# Verify new tests pass
+```
+
+If tests fail, diagnose and fix before proceeding. Do not skip failing tests.
+
+**7.4 Create a Pull Request:**
+
+```bash
+gh pr create --title "<type>(#<id>): <short description>" --body "$(cat <<'EOF'
+## Summary
+<What was changed and why — reference the issue>
+
+Closes #<id>
+
+## Changes
+- <file>: <what changed>
+- <file>: <what changed>
+
+## Testing
+- [ ] Existing tests pass
+- [ ] New tests added for changed behavior
+- [ ] Manual verification completed
+EOF
+)"
+```
+
+### Step 8: Verify
+
+After implementation, verify the fix addresses the original issue:
+
+1. **Re-read the issue description and acceptance criteria** — does the implementation fully address them?
+2. **Run the full test suite** — no regressions introduced
+3. **If the issue originated from `software-evaluation` or `vulnerability-scan`:** suggest re-running the relevant skill on the changed files to confirm the finding is resolved
+
+```
+✅ Implementation complete for Issue #<id>.
+
+To verify the improvement, consider re-running:
+  /software-evaluation <changed-path>
+  /vulnerability-scan <changed-path>
+```
+
+This closes the improvement cycle loop — the next diagnosis will confirm the fix.
 
 ## Key Principles
 

@@ -122,27 +122,29 @@ Score each pillar 1–10. Every score **must cite specific evidence** (file:line
 
 ---
 
-#### Pillar 4: Security & Data Integrity
+#### Pillar 4: Security Posture (Design-Level)
 
-*Is the attack surface minimal and is data handled safely?*
+*Is security built into the architecture, not bolted on?*
+
+> **Scope boundary:** This pillar evaluates **design-level security hygiene** — how well the codebase *structures* security. For vulnerability-specific findings (injection, XSS, SSRF, etc.), use the `vulnerability-scan` skill. Avoid duplicating specific vulnerability detection here.
 
 **What to look for:**
-- Input validation at all trust boundaries (never trust caller data)
-- Secrets management: no hardcoded credentials, env vars used correctly
-- Least privilege: DB user permissions, IAM roles, API scopes
-- SQL/NoSQL injection prevention (parameterized queries)
-- Authentication vs. authorization checks both present
-- Sensitive data in logs (PII, tokens, passwords)
+- Secrets management architecture: no hardcoded credentials, env vars with validation, secret rotation capability
+- Trust boundary design: are input validation and sanitization applied at defined boundaries (not scattered)?
+- Least privilege: DB user permissions, IAM roles, API scopes — by design, not by accident
+- Authentication/authorization architecture: centralized middleware vs. ad-hoc per-handler checks
+- Sensitive data handling policy: PII masking in logs, data retention, encryption at rest
+- Security testing in CI: SAST/DAST integration, dependency audit automation
 
 **Score calibration:**
 
 | Score | Signal |
 |-------|--------|
-| 1–3 | Hardcoded secrets; raw string SQL; no input validation; admin-level DB user |
-| 4–5 | Parameterized queries but missing validation on some inputs; secrets in `.env` but committed |
-| 6–7 | No obvious vulnerabilities; minor gaps (missing rate limiting, overly broad permissions) |
-| 8–9 | Defense-in-depth; least privilege enforced; secrets in a vault; security headers set |
-| 10 | Threat-modeled; automated security scanning in CI; penetration tested |
+| 1–3 | No security boundaries; secrets scattered in code; auth checks are ad-hoc and inconsistent |
+| 4–5 | Some centralized auth but gaps; secrets in env vars but no validation on startup |
+| 6–7 | Clear trust boundaries; centralized auth middleware; secrets managed but no rotation |
+| 8–9 | Defense-in-depth architecture; least privilege enforced; security scanning in CI pipeline |
+| 10 | Threat-modeled; zero-trust architecture; automated secret rotation; security as code |
 
 ---
 
@@ -233,7 +235,7 @@ Before writing the report, verify:
 | Architectural Integrity | X/10 | [one-line justification with evidence] |
 | Reliability & Resiliency | X/10 | [one-line justification with evidence] |
 | Observability & Operability | X/10 | [one-line justification with evidence] |
-| Security & Data Integrity | X/10 | [one-line justification with evidence] |
+| Security Posture (Design-Level) | X/10 | [one-line justification with evidence] |
 | DX & Cognitive Load | X/10 | [one-line justification with evidence] |
 | **Overall** | **X/10** | [weighted average, explain any weighting] |
 
@@ -273,7 +275,7 @@ Before writing the report, verify:
 
 ---
 
-### Security & Data Integrity — X/10
+### Security Posture (Design-Level) — X/10
 
 **Strengths:**
 - [specific evidence]

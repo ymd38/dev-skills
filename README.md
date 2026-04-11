@@ -15,11 +15,20 @@ graph LR
     Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan"]
     Register["📋 Register Issues<br/>report-to-issues"]
     Resolve["🛠️ Resolve<br/>gh-issue-resolver"]
+    Verify["✅ Verify<br/>Re-run diagnosis"]
 
     Diagnose -- "Reports" --> Register
     Register -- "GitHub Issues" --> Resolve
-    Resolve -- "Code Changes" --> Diagnose
+    Resolve -- "PR + Code Changes" --> Verify
+    Verify -- "Confirm fix / Next cycle" --> Diagnose
 ```
+
+| Step | Skill | What happens |
+|------|-------|-------------|
+| **Diagnose** | `software-evaluation`, `vulnerability-scan` | Evaluate code quality and security, produce reports |
+| **Register** | `report-to-issues` | Parse reports, deduplicate against existing issues, create GitHub Issues |
+| **Resolve** | `gh-issue-resolver` | Investigate issue, plan, implement, create PR |
+| **Verify** | Re-run `software-evaluation` or `vulnerability-scan` | Confirm the fix resolves the finding, close the loop |
 
 > **Note:** `spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation.
 

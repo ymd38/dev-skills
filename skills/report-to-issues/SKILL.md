@@ -65,7 +65,42 @@ Wait for the user's response before proceeding.
 
 ---
 
-### Phase 4: Ensure Labels Exist
+### Phase 4: Duplicate Detection
+
+Before creating issues, check for existing issues that may overlap with the selected tasks.
+
+**4.1 Fetch existing open issues:**
+
+```bash
+gh issue list --state open --json number,title,labels --limit 200
+```
+
+**4.2 For each selected task, check for duplicates:**
+
+Compare the task title/problem against existing issue titles using keyword overlap. Flag a potential duplicate when:
+- 3+ significant keywords match between the task and an existing issue title/body
+- The same `file:line` location is referenced
+- The same label combination exists (e.g., both `P0` + `security-audit`)
+
+**4.3 Present duplicates to the user:**
+
+```
+⚠ Potential duplicates detected:
+
+  Task 2: [P1] No timeouts on external HTTP calls
+    → May overlap with #34: "[P1] Add timeout to fetch calls in src/lib/http.ts"
+
+  Task 5: [P0] SQL Injection in user search
+    → May overlap with #12: "[P0] Parameterize DB queries in src/api/"
+
+Create anyway? Enter task numbers to skip (e.g. 2 5), or "proceed" to create all:
+```
+
+Wait for the user's response. Remove confirmed duplicates from the creation list.
+
+---
+
+### Phase 5: Ensure Labels Exist
 
 Before creating issues, verify required labels exist. Required labels:
 
@@ -91,9 +126,9 @@ gh label create "<label>" --color "<hex>" --description "<desc>"
 
 ---
 
-### Phase 5: Create Issues
+### Phase 6: Create Issues
 
-For each selected task, create the issue using the `gh` CLI `--body` flag with the formatted content:
+For each selected task (after duplicate filtering), create the issue using the `gh` CLI `--body` flag with the formatted content:
 
 ```
 gh issue create --title "<title>" --body "<body>" --label "<label1>" --label "<label2>"
@@ -144,7 +179,7 @@ Check exit code after each `gh issue create`. If non-zero, report the error and 
 
 ---
 
-### Phase 6: Summary
+### Phase 7: Summary
 
 After all issues are created, output:
 
@@ -164,6 +199,8 @@ Skipped: <any that failed with reason>
 - [ ] Report file exists and type is correctly detected
 - [ ] All extracted tasks shown to user before any issue is created
 - [ ] User selection confirmed
+- [ ] Duplicate detection run against existing open issues
+- [ ] Duplicate conflicts resolved by user before creation
 - [ ] Labels verified / created before issue creation
 - [ ] Each `gh issue create` exit code checked
 - [ ] Final summary lists all created issue URLs
