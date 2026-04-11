@@ -6,6 +6,23 @@ A collection of AI agent skills for software engineering workflows — code qual
 
 Skills are Markdown files that give AI agents specialized knowledge, workflows, and output templates for specific tasks. When installed, Claude Code recognizes relevant requests and applies the skill automatically — no manual prompting required.
 
+## Continuous Improvement Cycle
+
+These skills form a continuous improvement loop for your codebase:
+
+```mermaid
+graph LR
+    Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan"]
+    Register["📋 Register Issues<br/>report-to-issues"]
+    Resolve["🛠️ Resolve<br/>gh-issue-resolver"]
+
+    Diagnose -- "Reports" --> Register
+    Register -- "GitHub Issues" --> Resolve
+    Resolve -- "Code Changes" --> Diagnose
+```
+
+> **Note:** `spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation.
+
 ## Available Skills
 
 | Skill | Description |
