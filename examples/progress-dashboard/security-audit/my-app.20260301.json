@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "1.0",
+  "type": "vulnerability-scan",
+  "date": "2026-03-01",
+  "target": "my-app",
+  "scope": "src/",
+  "stack": "TypeScript/Next.js",
+  "findings": {
+    "critical": 0,
+    "high": 2,
+    "medium": 3,
+    "low": 2,
+    "total": 7,
+    "falsePositives": 2
+  },
+  "dependencies": {
+    "critical": 0,
+    "high": 1,
+    "medium": 1,
+    "low": 0
+  },
+  "remediation": {
+    "p0": 1,
+    "p1": 3
+  },
+  "topFindings": [
+    {
+      "id": "V-01",
+      "title": "SSRF via webhook URL parameter",
+      "severity": "High",
+      "location": "src/api/webhooks.ts:28"
+    },
+    {
+      "id": "V-02",
+      "title": "Missing HttpOnly on session cookie",
+      "severity": "High",
+      "location": "src/middleware/auth.ts:23"
+    }
+  ]
+}

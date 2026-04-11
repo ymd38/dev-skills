@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0",
+  "type": "software-evaluation",
+  "date": "2026-04-01",
+  "target": "my-app",
+  "scope": "src/",
+  "stack": "TypeScript/Next.js",
+  "context": "production",
+  "scores": {
+    "architecture": 7,
+    "reliability": 6,
+    "observability": 5,
+    "security": 7,
+    "dx": 7,
+    "overall": 6.4
+  },
+  "roadmap": {
+    "p0": 0,
+    "p1": 2,
+    "p2": 3,
+    "p3": 4
+  },
+  "blockers": []
+}

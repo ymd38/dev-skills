@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "type": "vulnerability-scan",
+  "date": "2026-02-01",
+  "target": "my-app",
+  "scope": "src/",
+  "stack": "TypeScript/Next.js",
+  "findings": {
+    "critical": 2,
+    "high": 3,
+    "medium": 4,
+    "low": 2,
+    "total": 11,
+    "falsePositives": 3
+  },
+  "dependencies": {
+    "critical": 1,
+    "high": 2,
+    "medium": 1,
+    "low": 0
+  },
+  "remediation": {
+    "p0": 3,
+    "p1": 4
+  },
+  "topFindings": [
+    {
+      "id": "V-01",
+      "title": "SQL Injection in user search",
+      "severity": "Critical",
+      "location": "src/api/users.ts:87"
+    },
+    {
+      "id": "V-02",
+      "title": "OS Command Injection via file upload name",
+      "severity": "Critical",
+      "location": "src/services/upload.ts:34"
+    },
+    {
+      "id": "V-03",
+      "title": "IDOR on document endpoint",
+      "severity": "High",
+      "location": "src/api/documents.ts:52"
+    }
+  ]
+}

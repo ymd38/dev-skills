@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0",
+  "type": "software-evaluation",
+  "date": "2026-02-01",
+  "target": "my-app",
+  "scope": "src/",
+  "stack": "TypeScript/Next.js",
+  "context": "production",
+  "scores": {
+    "architecture": 4,
+    "reliability": 3,
+    "observability": 2,
+    "security": 3,
+    "dx": 5,
+    "overall": 3.4
+  },
+  "roadmap": {
+    "p0": 3,
+    "p1": 5,
+    "p2": 4,
+    "p3": 2
+  },
+  "blockers": [
+    "Hardcoded DB password fallback in src/config/db.ts:4",
+    "No timeout on external HTTP calls in src/lib/http.ts:12",
+    "Unhandled promise rejections in src/api/orders.ts:45"
+  ]
+}

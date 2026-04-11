@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress Dashboard — my-app</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-border: #334155;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent-arch: #3b82f6;
+      --accent-rel: #10b981;
+      --accent-obs: #f59e0b;
+      --accent-sec: #ef4444;
+      --accent-dx: #8b5cf6;
+      --accent-overall: #06b6d4;
+      --severity-critical: #dc2626;
+      --severity-high: #f97316;
+      --severity-medium: #eab308;
+      --severity-low: #3b82f6;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 1.5rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+    }
+    .card-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+    .card-value {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .card-delta {
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+    }
+    .delta-positive { color: #22c55e; }
+    .delta-negative { color: #ef4444; }
+    .delta-neutral  { color: var(--text-muted); }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+    }
+    .chart-card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+    .chart-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .findings-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.875rem;
+    }
+    .findings-table th,
+    .findings-table td {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .findings-table th {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .severity-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .severity-critical { background: rgba(220, 38, 38, 0.2); color: #fca5a5; }
+    .severity-high     { background: rgba(249, 115, 22, 0.2); color: #fdba74; }
+    .severity-medium   { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+    .severity-low      { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+
+    .footer {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--card-border);
+    }
+
+    @media (max-width: 768px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      body { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== EMBEDDED DATA ===== -->
+<script>
+const EVALUATION_DATA = [
+  {
+    "schemaVersion": "1.0",
+    "type": "software-evaluation",
+    "date": "2026-02-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "context": "production",
+    "scores": { "architecture": 4, "reliability": 3, "observability": 2, "security": 3, "dx": 5, "overall": 3.4 },
+    "roadmap": { "p0": 3, "p1": 5, "p2": 4, "p3": 2 },
+    "blockers": [
+      "Hardcoded DB password fallback in src/config/db.ts:4",
+      "No timeout on external HTTP calls in src/lib/http.ts:12",
+      "Unhandled promise rejections in src/api/orders.ts:45"
+    ]
+  },
+  {
+    "schemaVersion": "1.0",
+    "type": "software-evaluation",
+    "date": "2026-03-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "context": "production",
+    "scores": { "architecture": 5, "reliability": 5, "observability": 4, "security": 5, "dx": 6, "overall": 5.0 },
+    "roadmap": { "p0": 1, "p1": 3, "p2": 4, "p3": 3 },
+    "blockers": ["Missing rate limiting on public API endpoints src/api/middleware.ts"]
+  },
+  {
+    "schemaVersion": "1.0",
+    "type": "software-evaluation",
+    "date": "2026-04-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "context": "production",
+    "scores": { "architecture": 7, "reliability": 6, "observability": 5, "security": 7, "dx": 7, "overall": 6.4 },
+    "roadmap": { "p0": 0, "p1": 2, "p2": 3, "p3": 4 },
+    "blockers": []
+  }
+];
+
+const SECURITY_DATA = [
+  {
+    "schemaVersion": "1.0",
+    "type": "vulnerability-scan",
+    "date": "2026-02-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "findings": { "critical": 2, "high": 3, "medium": 4, "low": 2, "total": 11, "falsePositives": 3 },
+    "dependencies": { "critical": 1, "high": 2, "medium": 1, "low": 0 },
+    "remediation": { "p0": 3, "p1": 4 },
+    "topFindings": [
+      { "id": "V-01", "title": "SQL Injection in user search", "severity": "Critical", "location": "src/api/users.ts:87" },
+      { "id": "V-02", "title": "OS Command Injection via file upload name", "severity": "Critical", "location": "src/services/upload.ts:34" },
+      { "id": "V-03", "title": "IDOR on document endpoint", "severity": "High", "location": "src/api/documents.ts:52" }
+    ]
+  },
+  {
+    "schemaVersion": "1.0",
+    "type": "vulnerability-scan",
+    "date": "2026-03-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "findings": { "critical": 0, "high": 2, "medium": 3, "low": 2, "total": 7, "falsePositives": 2 },
+    "dependencies": { "critical": 0, "high": 1, "medium": 1, "low": 0 },
+    "remediation": { "p0": 1, "p1": 3 },
+    "topFindings": [
+      { "id": "V-01", "title": "SSRF via webhook URL parameter", "severity": "High", "location": "src/api/webhooks.ts:28" },
+      { "id": "V-02", "title": "Missing HttpOnly on session cookie", "severity": "High", "location": "src/middleware/auth.ts:23" }
+    ]
+  },
+  {
+    "schemaVersion": "1.0",
+    "type": "vulnerability-scan",
+    "date": "2026-04-01",
+    "target": "my-app",
+    "scope": "src/",
+    "stack": "TypeScript/Next.js",
+    "findings": { "critical": 0, "high": 0, "medium": 2, "low": 1, "total": 3, "falsePositives": 1 },
+    "dependencies": { "critical": 0, "high": 0, "medium": 1, "low": 0 },
+    "remediation": { "p0": 0, "p1": 1 },
+    "topFindings": [
+      { "id": "V-01", "title": "Verbose error messages expose stack traces", "severity": "Medium", "location": "src/middleware/error-handler.ts:15" },
+      { "id": "V-02", "title": "Missing X-Content-Type-Options header", "severity": "Medium", "location": "src/middleware/headers.ts:8" }
+    ]
+  }
+];
+</script>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1>Progress Dashboard</h1>
+  <p id="header-meta"></p>
+</div>
+
+<!-- ===== SUMMARY CARDS ===== -->
+<div class="summary-cards" id="summary-cards"></div>
+
+<!-- ===== CHARTS ===== -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <h2>Quality Score Trend</h2>
+    <div class="chart-container">
+      <canvas id="quality-trend-chart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h2>Latest vs Previous (Radar)</h2>
+    <div class="chart-container">
+      <canvas id="radar-chart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h2>Security Findings Trend</h2>
+    <div class="chart-container">
+      <canvas id="security-trend-chart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h2>Roadmap & Remediation Progress</h2>
+    <div class="chart-container">
+      <canvas id="roadmap-chart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DEPENDENCY RISK + LATEST FINDINGS TABLE ===== -->
+<div class="charts-grid">
+  <div class="chart-card">
+    <h2>Dependency Vulnerabilities</h2>
+    <div class="chart-container">
+      <canvas id="deps-chart"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <h2>Latest Findings</h2>
+    <table class="findings-table" id="findings-table">
+      <thead>
+        <tr><th>ID</th><th>Title</th><th>Severity</th><th>Location</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footer"></div>
+
+<!-- ===== RENDERING LOGIC ===== -->
+<script>
+(function () {
+  const COLORS = {
+    architecture: '#3b82f6',
+    reliability: '#10b981',
+    observability: '#f59e0b',
+    security: '#ef4444',
+    dx: '#8b5cf6',
+    overall: '#06b6d4'
+  };
+
+  const PILLAR_LABELS = {
+    architecture: 'Architecture',
+    reliability: 'Reliability',
+    observability: 'Observability',
+    security: 'Security',
+    dx: 'DX'
+  };
+
+  const chartDefaults = {
+    color: '#94a3b8',
+    borderColor: '#334155',
+    font: { family: '-apple-system, BlinkMacSystemFont, sans-serif' }
+  };
+  Chart.defaults.color = chartDefaults.color;
+  Chart.defaults.borderColor = chartDefaults.borderColor;
+
+  /* ---- helpers ---- */
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function deltaText(current, previous, invert) {
+    if (previous === undefined || previous === null) return { text: '—', cls: 'delta-neutral' };
+    const diff = current - previous;
+    if (diff === 0) return { text: '±0', cls: 'delta-neutral' };
+    const sign = diff > 0 ? '+' : '';
+    const isGood = invert ? diff < 0 : diff > 0;
+    return {
+      text: sign + (Number.isInteger(diff) ? diff : diff.toFixed(1)),
+      cls: isGood ? 'delta-positive' : 'delta-negative'
+    };
+  }
+
+  /* ---- header ---- */
+  const allDates = [...EVALUATION_DATA, ...SECURITY_DATA].map(d => d.date).sort();
+  const target = (EVALUATION_DATA[0] || SECURITY_DATA[0]).target;
+  document.getElementById('header-meta').textContent =
+    `Target: ${target} | ${formatDate(allDates[0])} — ${formatDate(allDates[allDates.length - 1])} | Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  /* ---- summary cards ---- */
+  const latestEval = EVALUATION_DATA[EVALUATION_DATA.length - 1];
+  const prevEval = EVALUATION_DATA.length > 1 ? EVALUATION_DATA[EVALUATION_DATA.length - 2] : null;
+  const latestSec = SECURITY_DATA[SECURITY_DATA.length - 1];
+  const prevSec = SECURITY_DATA.length > 1 ? SECURITY_DATA[SECURITY_DATA.length - 2] : null;
+
+  const cards = [
+    {
+      label: 'Overall Quality',
+      value: latestEval ? latestEval.scores.overall.toFixed(1) : '—',
+      delta: latestEval && prevEval ? deltaText(latestEval.scores.overall, prevEval.scores.overall, false) : null,
+      color: COLORS.overall
+    },
+    {
+      label: 'Total Vulnerabilities',
+      value: latestSec ? latestSec.findings.total : '—',
+      delta: latestSec && prevSec ? deltaText(latestSec.findings.total, prevSec.findings.total, true) : null,
+      color: '#f59e0b'
+    },
+    {
+      label: 'P0 Blockers',
+      value: latestEval ? latestEval.roadmap.p0 : '—',
+      delta: latestEval && prevEval ? deltaText(latestEval.roadmap.p0, prevEval.roadmap.p0, true) : null,
+      color: latestEval && latestEval.roadmap.p0 > 0 ? '#ef4444' : '#22c55e'
+    },
+    {
+      label: 'Security Score',
+      value: latestEval ? latestEval.scores.security + '/10' : '—',
+      delta: latestEval && prevEval ? deltaText(latestEval.scores.security, prevEval.scores.security, false) : null,
+      color: COLORS.security
+    }
+  ];
+
+  const cardsContainer = document.getElementById('summary-cards');
+  cards.forEach(c => {
+    const d = c.delta;
+    cardsContainer.innerHTML += `
+      <div class="card">
+        <div class="card-label">${c.label}</div>
+        <div class="card-value" style="color:${c.color}">${c.value}</div>
+        ${d ? `<div class="card-delta ${d.cls}">${d.text} from previous</div>` : ''}
+      </div>`;
+  });
+
+  /* ---- quality trend chart ---- */
+  const evalDates = EVALUATION_DATA.map(d => formatDate(d.date));
+  const pillarKeys = Object.keys(PILLAR_LABELS);
+
+  const trendDatasets = pillarKeys.map(key => ({
+    label: PILLAR_LABELS[key],
+    data: EVALUATION_DATA.map(d => d.scores[key]),
+    borderColor: COLORS[key],
+    backgroundColor: COLORS[key] + '33',
+    tension: 0.3,
+    pointRadius: 5,
+    pointHoverRadius: 7
+  }));
+  trendDatasets.push({
+    label: 'Overall',
+    data: EVALUATION_DATA.map(d => d.scores.overall),
+    borderColor: COLORS.overall,
+    backgroundColor: COLORS.overall + '33',
+    borderWidth: 3,
+    tension: 0.3,
+    pointRadius: 5,
+    pointHoverRadius: 7
+  });
+
+  new Chart(document.getElementById('quality-trend-chart'), {
+    type: 'line',
+    data: { labels: evalDates, datasets: trendDatasets },
+    options: {
+      responsive: true,
+      scales: {
+        y: { min: 0, max: 10, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } },
+        x: { grid: { color: '#1e293b' } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    }
+  });
+
+  /* ---- radar chart ---- */
+  const radarLabels = pillarKeys.map(k => PILLAR_LABELS[k]);
+  const radarDatasets = [];
+  if (latestEval) {
+    radarDatasets.push({
+      label: 'Current (' + formatDate(latestEval.date) + ')',
+      data: pillarKeys.map(k => latestEval.scores[k]),
+      borderColor: COLORS.overall,
+      backgroundColor: COLORS.overall + '33',
+      pointBackgroundColor: COLORS.overall
+    });
+  }
+  if (prevEval) {
+    radarDatasets.push({
+      label: 'Previous (' + formatDate(prevEval.date) + ')',
+      data: pillarKeys.map(k => prevEval.scores[k]),
+      borderColor: '#64748b',
+      backgroundColor: '#64748b22',
+      borderDash: [5, 5],
+      pointBackgroundColor: '#64748b'
+    });
+  }
+
+  new Chart(document.getElementById('radar-chart'), {
+    type: 'radar',
+    data: { labels: radarLabels, datasets: radarDatasets },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          min: 0, max: 10, ticks: { stepSize: 2, backdropColor: 'transparent' },
+          grid: { color: '#334155' }, angleLines: { color: '#334155' },
+          pointLabels: { font: { size: 12 } }
+        }
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    }
+  });
+
+  /* ---- security findings trend ---- */
+  const secDates = SECURITY_DATA.map(d => formatDate(d.date));
+  new Chart(document.getElementById('security-trend-chart'), {
+    type: 'bar',
+    data: {
+      labels: secDates,
+      datasets: [
+        { label: 'Critical', data: SECURITY_DATA.map(d => d.findings.critical), backgroundColor: '#dc2626' },
+        { label: 'High',     data: SECURITY_DATA.map(d => d.findings.high),     backgroundColor: '#f97316' },
+        { label: 'Medium',   data: SECURITY_DATA.map(d => d.findings.medium),   backgroundColor: '#eab308' },
+        { label: 'Low',      data: SECURITY_DATA.map(d => d.findings.low),      backgroundColor: '#3b82f6' }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true, grid: { color: '#1e293b' } },
+        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    }
+  });
+
+  /* ---- roadmap & remediation chart ---- */
+  const combinedDates = [...new Set([...EVALUATION_DATA.map(d => d.date), ...SECURITY_DATA.map(d => d.date)])].sort();
+  const combinedLabels = combinedDates.map(formatDate);
+
+  function findByDate(arr, date) { return arr.find(d => d.date === date); }
+
+  new Chart(document.getElementById('roadmap-chart'), {
+    type: 'bar',
+    data: {
+      labels: combinedLabels,
+      datasets: [
+        {
+          label: 'Eval P0',
+          data: combinedDates.map(d => { const e = findByDate(EVALUATION_DATA, d); return e ? e.roadmap.p0 : null; }),
+          backgroundColor: '#dc262699'
+        },
+        {
+          label: 'Eval P1',
+          data: combinedDates.map(d => { const e = findByDate(EVALUATION_DATA, d); return e ? e.roadmap.p1 : null; }),
+          backgroundColor: '#f9731699'
+        },
+        {
+          label: 'Scan P0',
+          data: combinedDates.map(d => { const s = findByDate(SECURITY_DATA, d); return s ? s.remediation.p0 : null; }),
+          backgroundColor: '#dc2626',
+          borderWidth: 2,
+          borderColor: '#fca5a5'
+        },
+        {
+          label: 'Scan P1',
+          data: combinedDates.map(d => { const s = findByDate(SECURITY_DATA, d); return s ? s.remediation.p1 : null; }),
+          backgroundColor: '#f97316',
+          borderWidth: 2,
+          borderColor: '#fdba74'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { grid: { color: '#1e293b' } },
+        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    }
+  });
+
+  /* ---- dependency chart ---- */
+  const depLabels = SECURITY_DATA.map(d => formatDate(d.date));
+  new Chart(document.getElementById('deps-chart'), {
+    type: 'bar',
+    data: {
+      labels: depLabels,
+      datasets: [
+        { label: 'Critical', data: SECURITY_DATA.map(d => d.dependencies.critical), backgroundColor: '#dc2626' },
+        { label: 'High',     data: SECURITY_DATA.map(d => d.dependencies.high),     backgroundColor: '#f97316' },
+        { label: 'Medium',   data: SECURITY_DATA.map(d => d.dependencies.medium),   backgroundColor: '#eab308' },
+        { label: 'Low',      data: SECURITY_DATA.map(d => d.dependencies.low),      backgroundColor: '#3b82f6' }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        x: { stacked: true, grid: { color: '#1e293b' } },
+        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
+      },
+      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    }
+  });
+
+  /* ---- latest findings table ---- */
+  const tbody = document.querySelector('#findings-table tbody');
+  if (latestSec) {
+    latestSec.topFindings.forEach(f => {
+      const sevClass = f.severity.toLowerCase();
+      tbody.innerHTML += `
+        <tr>
+          <td>${f.id}</td>
+          <td>${f.title}</td>
+          <td><span class="severity-badge severity-${sevClass}">${f.severity}</span></td>
+          <td><code>${f.location}</code></td>
+        </tr>`;
+    });
+  }
+
+  /* ---- footer ---- */
+  document.getElementById('footer').textContent =
+    `Generated by progress-dashboard skill | Data: ${EVALUATION_DATA.length} evaluations, ${SECURITY_DATA.length} security scans`;
+})();
+</script>
+
+</body>
+</html>

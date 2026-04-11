@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "type": "software-evaluation",
+  "date": "2026-03-01",
+  "target": "my-app",
+  "scope": "src/",
+  "stack": "TypeScript/Next.js",
+  "context": "production",
+  "scores": {
+    "architecture": 5,
+    "reliability": 5,
+    "observability": 4,
+    "security": 5,
+    "dx": 6,
+    "overall": 5.0
+  },
+  "roadmap": {
+    "p0": 1,
+    "p1": 3,
+    "p2": 4,
+    "p3": 3
+  },
+  "blockers": [
+    "Missing rate limiting on public API endpoints src/api/middleware.ts"
+  ]
+}

@@ -206,6 +206,44 @@ Before writing the report, verify:
 - [ ] Roadmap items are concrete (specific files/functions named, not general advice)
 - [ ] Stack context is acknowledged (prototype vs. production, team size)
 - [ ] Output file path follows the naming convention: `docs/evaluation/[directory_name].YYYYMMDD.md`
+- [ ] JSON summary file is saved alongside the report: `docs/evaluation/[directory_name].YYYYMMDD.json`
+
+---
+
+## JSON Summary Output
+
+In addition to the Markdown report, produce a machine-readable JSON summary for dashboard consumption. Save it as `docs/evaluation/[directory_name].YYYYMMDD.json`.
+
+```json
+{
+  "schemaVersion": "1.0",
+  "type": "software-evaluation",
+  "date": "YYYY-MM-DD",
+  "target": "[directory_name]",
+  "scope": "[path]",
+  "stack": "[language/framework]",
+  "context": "prototype | production | unknown",
+  "scores": {
+    "architecture": 0,
+    "reliability": 0,
+    "observability": 0,
+    "security": 0,
+    "dx": 0,
+    "overall": 0
+  },
+  "roadmap": {
+    "p0": 0,
+    "p1": 0,
+    "p2": 0,
+    "p3": 0
+  },
+  "blockers": [
+    "short description of each P0 blocker"
+  ]
+}
+```
+
+> See `examples/progress-dashboard/evaluation/` for sample files.
 
 ---
 
