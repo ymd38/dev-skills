@@ -1,122 +1,35 @@
 ---
 name: gh-issue-resolver
-description: "Fetch a GitHub Issue by ID using the gh CLI, investigate related code, and propose a structured response plan (policy, impact scope, implementation steps). Use when the user provides a GitHub Issue ID or asks to work on/analyze/fix a GitHub Issue. Triggers include issue IDs like #42 or 'issue 42', requests such as Issueを対応して, fix issue #N, investigate issue, look at issue, resolve issue, or any similar phrasing that references a specific GitHub Issue."
+description: "Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by gh-issue-planner. Creates a feature branch, applies the agreed plan, runs tests, and opens a Pull Request. Use when the user asks to implement/fix/resolve a planned GitHub Issue. Triggers include requests such as Issueを実装して / Issueを修正して / Issueを対応して, implement issue #N, fix issue #N, resolve issue #N, work on issue #N. Prerequisite: an agreed plan comment must exist on the issue (run gh-issue-planner first if not)."
 ---
 
 # GitHub Issue Resolver
 
 ## Overview
 
-Fetch a GitHub Issue, analyze its content, investigate related code in the repository, then present a structured response plan to the user. Confirm any ambiguities before proceeding to implementation.
+Implement and verify a fix for a GitHub Issue, starting from the agreed response plan that `gh-issue-planner` has already posted as a comment on the issue. This skill creates a feature branch, applies the agreed changes, runs tests, opens a Pull Request, and verifies the fix against the original issue.
+
+## Prerequisites
+
+- The target issue must have an **agreed plan comment** previously posted by `gh-issue-planner`, identified by the HTML marker `<!-- gh-issue-planner:agreed-plan -->` near the end of the comment body.
+- If no such comment exists, **stop and direct the user to run `gh-issue-planner` first**. Do not improvise an unagreed plan in this skill.
 
 ## Workflow
 
-### Step 1: Fetch the Issue
+### Step 1: Fetch the Issue and Agreed Plan
 
 Run the following command (replace `<id>` with the issue number):
 
 ```bash
-gh issue view <id> --json number,title,body,labels,assignees,state,url,comments
+gh issue view <id> --json number,title,body,labels,state,url,comments
 ```
 
-If no repository context is clear, also run:
+From the `comments` array:
+1. Locate the most recent comment whose body contains the marker `<!-- gh-issue-planner:agreed-plan -->`.
+2. Treat that comment as the **agreed plan** and extract the 対応方針 / 影響範囲 / 実装方法 sections.
+3. If no such comment exists, abort with a message asking the user to run `gh-issue-planner` first.
 
-```bash
-gh repo view --json nameWithOwner
-```
-
-Extract from the response:
-- **Title** and **body**: the core problem statement
-- **Labels**: bug / feature / enhancement / etc. — determines response approach
-- **Comments**: additional context, workarounds, or constraints from stakeholders
-
-### Step 2: Classify the Issue
-
-Determine issue type to guide the investigation strategy:
-
-| Label / Signal | Type | Investigation Focus |
-|---|---|---|
-| bug, error, crash | Bug fix | Error paths, edge cases, affected callers |
-| feature, enhancement | New feature | Insertion points, interface contracts, related modules |
-| refactor, tech-debt | Refactoring | Current usage sites, test coverage |
-| docs, documentation | Docs update | Existing docs, code references |
-
-### Step 3: Investigate Related Code
-
-Extract keywords from the title and body, then search the codebase:
-
-1. Use `code_search` with natural-language queries derived from the issue
-2. Use `grep_search` for specific function/class/variable names mentioned
-3. Use `read_file` to deeply understand the most relevant files
-4. Trace call chains and dependencies to establish impact scope
-
-Focus on:
-- Files and functions directly mentioned or implied in the issue
-- Callers / consumers of affected code
-- Tests covering the affected area
-
-### Step 4: Present the Response Plan
-
-Present the following structured plan to the user in their preferred language:
-
-```
-## Issue #<id>: <title>
-
-### 対応方針 (Approach)
-<What will be done and why — 2-4 sentences>
-
-### 影響範囲 (Impact Scope)
-- **変更対象ファイル**: list of files to modify
-- **影響を受けるモジュール**: related modules that may be affected
-- **テスト**: existing tests to update + new tests to add
-
-### 実装方法 (Implementation Steps)
-1. <Concrete step>
-2. <Concrete step>
-3. ...
-
-### 懸念事項・確認事項 (Open Questions)
-- <Any ambiguity or assumption that needs user confirmation>
-```
-
-### Step 5: Confirm and Iterate
-
-- If there are open questions, **ask the user before proceeding**
-- Adjust the plan based on feedback
-- Once the user explicitly confirms, proceed to Step 6
-
-### Step 6: Post the Agreed Plan to the Issue
-
-After the user confirms the plan, post it as a comment on the GitHub Issue:
-
-```bash
-gh issue comment <id> --body "$(cat <<'EOF'
-## 対応方針
-
-<agreed approach>
-
-## 影響範囲
-
-- **変更対象ファイル**: <files>
-- **影響を受けるモジュール**: <modules>
-- **テスト**: <tests>
-
-## 実装方法
-
-1. <step>
-2. <step>
-
----
-*このコメントはAIエージェントによって自動生成されました。*
-EOF
-)"
-```
-
-Then proceed to Step 7.
-
-### Step 7: Implement
-
-**7.1 Branch strategy:**
+### Step 2: Branch Strategy
 
 ```bash
 # Create a feature branch from the default branch
@@ -129,14 +42,15 @@ Branch naming convention:
 - Features: `feat/<id>-<short-description>`
 - Refactors: `refactor/<id>-<short-description>`
 
-**7.2 Implementation:**
+### Step 3: Implementation
 
 Apply the changes defined in the agreed plan. Follow these rules:
-- Make minimal, focused changes — do not scope-creep beyond the issue
+- Make minimal, focused changes — do not scope-creep beyond the agreed plan
 - Run existing tests after each logical change to catch regressions early
 - Add or update tests to cover the changed behavior
+- If the agreed plan turns out to be infeasible or incomplete, **stop and return to `gh-issue-planner`** rather than silently expanding the scope here
 
-**7.3 Test verification:**
+### Step 4: Test Verification
 
 ```bash
 # Run tests relevant to the changed area
@@ -146,7 +60,7 @@ Apply the changes defined in the agreed plan. Follow these rules:
 
 If tests fail, diagnose and fix before proceeding. Do not skip failing tests.
 
-**7.4 Create a Pull Request:**
+### Step 5: Create a Pull Request
 
 ```bash
 gh pr create --title "<type>(#<id>): <short description>" --body "$(cat <<'EOF'
@@ -167,7 +81,7 @@ EOF
 )"
 ```
 
-### Step 8: Verify
+### Step 6: Verify
 
 After implementation, verify the fix addresses the original issue:
 
@@ -187,7 +101,7 @@ This closes the improvement cycle loop — the next diagnosis will confirm the f
 
 ## Key Principles
 
-- **Never implement without confirmation** when open questions exist
-- Keep the plan concise — avoid over-engineering
-- If the issue is vague, ask one focused clarifying question rather than multiple at once
+- **Never start implementation without an agreed plan comment** posted by `gh-issue-planner`
+- Stay strictly within the agreed plan — no scope creep
+- Never skip or weaken failing tests; fix the root cause instead
 - Prefer minimal, upstream fixes over downstream workarounds
