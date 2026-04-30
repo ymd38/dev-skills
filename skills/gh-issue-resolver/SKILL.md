@@ -7,7 +7,7 @@ description: "Implement and verify a fix for a GitHub Issue whose response plan 
 
 ## Overview
 
-Implement and verify a fix for a GitHub Issue, starting from the agreed response plan that `gh-issue-planner` has already posted as a comment on the issue. This skill creates a feature branch, applies the agreed changes, runs tests, opens a Pull Request, and verifies the fix against the original issue.
+Implement and verify a fix for a GitHub Issue, starting from the agreed response plan that `gh-issue-planner` has already posted as a comment on the issue. This skill creates a feature branch, uses a git worktree as a temporary implementation sandbox, runs tests, opens a Pull Request, and verifies the fix against the original issue.
 
 ## Prerequisites
 
@@ -29,12 +29,15 @@ From the `comments` array:
 2. Treat that comment as the **agreed plan** and extract the 対応方針 / 影響範囲 / 実装方法 sections.
 3. If no such comment exists, abort with a message asking the user to run `gh-issue-planner` first.
 
-### Step 2: Branch Strategy
+### Step 2: Branch and Worktree Setup
 
 ```bash
-# Create a feature branch from the default branch
-git checkout -b fix/<id>-<short-description>
-# Examples: fix/42-add-timeout-to-fetch, feat/15-user-export-api
+# 1. Create a branch from the default branch (without switching the main working tree)
+git branch <branch-name>
+# Examples: fix/42-add-timeout-to-fetch  feat/15-user-export-api
+
+# 2. Create an isolated worktree from that branch
+git worktree add ../<branch-name> <branch-name>
 ```
 
 Branch naming convention:
@@ -42,9 +45,11 @@ Branch naming convention:
 - Features: `feat/<id>-<short-description>`
 - Refactors: `refactor/<id>-<short-description>`
 
+All implementation work (Steps 3–4) is performed inside the worktree directory `../<branch-name>`. The main working tree stays on its current branch throughout.
+
 ### Step 3: Implementation
 
-Apply the changes defined in the agreed plan. Follow these rules:
+Apply the changes defined in the agreed plan inside the worktree directory. Follow these rules:
 - Make minimal, focused changes — do not scope-creep beyond the agreed plan
 - Run existing tests after each logical change to catch regressions early
 - Add or update tests to cover the changed behavior
@@ -53,14 +58,32 @@ Apply the changes defined in the agreed plan. Follow these rules:
 ### Step 4: Test Verification
 
 ```bash
-# Run tests relevant to the changed area
+# Run tests relevant to the changed area (inside the worktree directory)
 # Ensure no regressions in existing tests
 # Verify new tests pass
 ```
 
 If tests fail, diagnose and fix before proceeding. Do not skip failing tests.
 
-### Step 5: Create a Pull Request
+### Step 5: Teardown Worktree and Switch to Branch
+
+After tests pass, remove the worktree and switch the main working tree to the feature branch:
+
+```bash
+# Remove the worktree — the branch and its commits are preserved
+git worktree remove ../<branch-name>
+
+# Switch the main working tree to the feature branch
+git checkout <branch-name>
+```
+
+The main working tree now reflects the implemented changes.
+
+### Step 6: Visual Verification
+
+Run the application in the normal development environment and verify the fix on screen. Confirm the fix addresses the acceptance criteria in the original issue.
+
+### Step 7: Create a Pull Request
 
 ```bash
 gh pr create --title "<type>(#<id>): <short description>" --body "$(cat <<'EOF'
@@ -81,7 +104,7 @@ EOF
 )"
 ```
 
-### Step 6: Verify
+### Step 8: Verify
 
 After implementation, verify the fix addresses the original issue:
 
@@ -99,9 +122,28 @@ To verify the improvement, consider re-running:
 
 This closes the improvement cycle loop — the next diagnosis will confirm the fix.
 
+### Step 9: Cleanup (on explicit user instruction only)
+
+**Do NOT run this step automatically.** Execute only when the user explicitly requests cleanup (e.g., "ブランチを削除して", "マージしたので片付けて", "clean up the branch").
+
+Typical trigger: the PR has been merged and the user is ready to discard the feature branch.
+
+```bash
+# Switch back to the default branch
+git checkout main   # or master / trunk as appropriate
+
+# Delete the local branch (-d guards against unmerged changes)
+git branch -d <branch-name>
+
+# Prune stale remote-tracking refs if the remote branch was already deleted
+git fetch --prune
+```
+
 ## Key Principles
 
 - **Never start implementation without an agreed plan comment** posted by `gh-issue-planner`
 - Stay strictly within the agreed plan — no scope creep
 - Never skip or weaken failing tests; fix the root cause instead
 - Prefer minimal, upstream fixes over downstream workarounds
+- The worktree is a temporary sandbox — remove it after tests pass (Step 5), before visual verification
+- **Never delete the feature branch without explicit user instruction** — cleanup (Step 9) happens only after the user confirms the PR is merged and ready to discard
