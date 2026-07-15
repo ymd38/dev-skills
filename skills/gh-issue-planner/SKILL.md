@@ -30,6 +30,18 @@ Extract from the response:
 - **Labels**: bug / feature / enhancement / etc. — determines response approach
 - **Comments**: additional context, workarounds, or constraints from stakeholders
 
+**Pre-scoped Issues:** if the body contains `<!-- gh-issue-drafter:scoped-issue -->`,
+the Issue was drafted via `gh-issue-drafter` and its scope is author-approved. Treat its
+sections as binding input to the plan:
+- **完了条件 (Done)** — the contract the plan must satisfy; every condition must be
+  covered by an implementation step or a test in the plan
+- **触らない範囲 (Out of scope)** — hard boundaries; reject any plan direction that
+  crosses them
+- **設計方針 (Design constraints)** — constraints on how, not just what
+
+Do not re-ask the user about scope that these sections already answer — raise open
+questions only for genuinely new information discovered during investigation.
+
 ### Step 2: Classify the Issue
 
 Determine issue type to guide the investigation strategy:
