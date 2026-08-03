@@ -12,13 +12,12 @@ These skills form a continuous improvement loop for your codebase:
 
 ```mermaid
 graph LR
-    Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan"]
+    Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan<br/>data-validation"]
     Visualize["📊 Visualize<br/>progress-dashboard"]
     Register["📋 Register Issues<br/>report-to-issues"]
     Draft["✍️ Draft Issue<br/>gh-issue-drafter"]
     Plan["🧠 Plan<br/>gh-issue-planner"]
-    Resolve["🛠️ Resolve<br/>gh-issue-resolver"]
-    Verify["✅ Verify<br/>Re-run diagnosis"]
+    Resolve["🛠️ Resolve + Verify<br/>gh-issue-resolver"]
 
     Idea["💡 Rough idea<br/>(hand-written)"] -- "Loose 'what I want'" --> Draft
     Diagnose -- "Reports + JSON" --> Visualize
@@ -26,20 +25,26 @@ graph LR
     Register -- "GitHub Issues" --> Plan
     Draft -- "Scoped GitHub Issue" --> Plan
     Plan -- "Agreed plan comment" --> Resolve
-    Resolve -- "PR + Code Changes" --> Verify
-    Verify -- "Confirm fix / Next cycle" --> Diagnose
-    Visualize -. "Track trends" .-> Verify
+    Resolve -- "Re-run diagnosis on the diff" --> Diagnose
+    Diagnose -- "Regressions only" --> Resolve
+    Resolve -- "PR + Code Changes" --> Done["✅ Verified PR"]
+    Visualize -. "Track trends" .-> Done
 ```
+
+The `Resolve ⇄ Diagnose` arrows are the autonomous verification loop: `gh-issue-resolver`
+re-runs the diagnosis on its own diff, fixes the findings **it caused**, and re-checks — up to
+3 iterations, never outside the agreed plan's impact scope. Findings that predate the change
+are handed to `report-to-issues` instead of being fixed in the same PR.
 
 | Step | Skill | What happens |
 |------|-------|-------------|
-| **Diagnose** | `software-evaluation`, `vulnerability-scan` | Evaluate code quality and security, produce reports + JSON summaries |
+| **Diagnose** | `software-evaluation`, `vulnerability-scan`, `data-validation` | Evaluate code quality, security, and data correctness. The first two produce reports + JSON summaries; `data-validation` is session-output only by design |
 | **Visualize** | `progress-dashboard` | Generate an interactive HTML dashboard from JSON summaries to track improvement trends |
 | **Register** | `report-to-issues` | Parse reports, deduplicate against existing issues, create GitHub Issues |
 | **Draft** | `gh-issue-drafter` | Turn a rough, hand-written intent into a scoped Issue (Done / Out of scope / Design constraints) — the human-authored entry point into the cycle |
 | **Plan** | `gh-issue-planner` | Investigate the issue, propose a structured response plan, post the agreed plan as an issue comment |
 | **Resolve** | `gh-issue-resolver` | Pick up the agreed plan comment, create a branch, implement, run tests, open a PR |
-| **Verify** | Re-run `software-evaluation` or `vulnerability-scan` | Confirm the fix resolves the finding, close the loop |
+| **Verify** | `gh-issue-resolver` (Step 8) | Re-run the triggered diagnoses on the diff, attribute each finding, **autonomously fix the regressions this change caused**, and hand pre-existing findings to `report-to-issues`. Bounded to 3 iterations and the agreed plan's impact scope |
 
 > **Note:** `spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation.
 
@@ -50,10 +55,11 @@ graph LR
 | [spec-doc](skills/spec-doc/SKILL.md) | Generate or sync a "Living Specification" from source code to eliminate doc-code drift. Use when creating, updating, or reviewing architecture documentation for a directory or module. |
 | [software-evaluation](skills/software-evaluation/SKILL.md) | Evaluate code quality across five pillars (Architecture, Reliability, Observability, Security, DX) and produce a 1–10 scorecard with a strategic improvement roadmap. |
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Run an OWASP-based offensive security audit using Semgrep and produce a read-only vulnerability report with severity ratings and remediation recommendations. |
+| [data-validation](skills/data-validation/SKILL.md) | Validate data read from the project's own fixtures or an explicitly configured non-production connection — record counts, NULL rates, distribution, uniqueness, referential integrity, and format validity — with sampled evidence rows and regression attribution. Read-only; produces no JSON. |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | Parse reports from software-evaluation or vulnerability-scan, interactively select tasks, and register them as GitHub Issues using the `gh` CLI. |
 | [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | Turn a rough, hand-written intent into a well-scoped GitHub Issue. Proposes the missing Done definition, Out of scope, and Design constraints for user approval, then files the Issue with a scoped-issue marker that `gh-issue-planner` recognizes. |
 | [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Fetch a GitHub Issue by ID, investigate related code, propose a structured response plan (approach, impact scope, implementation steps), and post the agreed plan as an issue comment. Implementation is out of scope. |
-| [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by `gh-issue-planner`. Creates a branch, applies the agreed plan, runs tests, and opens a Pull Request. |
+| [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by `gh-issue-planner`. Creates a branch, applies the agreed plan, runs tests, opens a Pull Request, then re-runs the diagnosis and autonomously fixes the regressions its own change caused. |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | Generate an interactive HTML dashboard that visualizes quality scores and security findings over time from JSON summaries. |
 
 ## Installation
@@ -110,6 +116,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 "Scan src/ for security vulnerabilities"
 → Uses vulnerability-scan skill
 
+"Check the data quality of db/" / "データ検証して" / "NULL率を調べて"
+→ Uses data-validation skill
+
 "Create GitHub Issues from docs/evaluation/myapp.20260406.md"
 → Uses report-to-issues skill
 
@@ -132,6 +141,7 @@ You can also invoke skills directly:
 /spec-doc src/
 /software-evaluation src/backend/
 /vulnerability-scan src/
+/data-validation db/
 /report-to-issues docs/evaluation/myapp.20260406.md
 /gh-issue-drafter
 /gh-issue-planner
@@ -150,6 +160,9 @@ You can also invoke skills directly:
 ### Security
 - `vulnerability-scan` — Combines automated Semgrep scanning with a manual review checklist covering OWASP Top 10. Triages true positives from false positives and includes a dependency CVE audit.
 
+### Data
+- `data-validation` — Checks record counts, NULL rates (including empty strings, zero values, and sentinels), value distribution, uniqueness, referential integrity, and format validity. Reads only from the project's own fixtures/seeds or an explicitly configured non-production connection — never a guessed or production source. Every finding carries up to 5 sampled rows with PII masked, and every expectation is traced back to a schema constraint, type definition, or test assertion. Classifies each finding as `regression` / `pre-existing` / `environmental` so `gh-issue-resolver` knows what it is allowed to fix. **Writes no JSON and, by default, no file at all** — routine validation should not grow the commit target.
+
 ### Visualization
 - `progress-dashboard` — Reads JSON summaries from `software-evaluation` and `vulnerability-scan`, then generates a self-contained HTML dashboard with quality score trends, radar charts, security findings trends, roadmap progress, and dependency risk panels.
 
@@ -157,7 +170,7 @@ You can also invoke skills directly:
 - `report-to-issues` — Decomposes evaluation or security-audit reports into actionable tasks, presents them for user selection, and registers the chosen items as GitHub Issues with appropriate labels and priority.
 - `gh-issue-drafter` — Takes a loose, hand-written "what I want" and drafts the structure it almost always lacks (machine-checkable 完了条件, 触らない範囲, optional 設計方針). After author approval, files the Issue tagged with `<!-- gh-issue-drafter:scoped-issue -->` so `gh-issue-planner` treats the scope as binding. The human-authored counterpart to `report-to-issues`.
 - `gh-issue-planner` — Fetches a GitHub Issue via `gh` CLI, classifies it (bug/feature/refactor/docs), searches related code, and presents a structured plan (approach, impact scope, steps, open questions). Posts the agreed plan as an issue comment tagged with `<!-- gh-issue-planner:agreed-plan -->`.
-- `gh-issue-resolver` — Picks up the agreed plan comment posted by `gh-issue-planner`, creates a feature branch, applies the changes, runs tests, opens a Pull Request, and verifies the fix against the original issue.
+- `gh-issue-resolver` — Picks up the agreed plan comment posted by `gh-issue-planner`, creates a feature branch, applies the changes, runs tests, opens a Pull Request, and verifies the fix against the original issue. Verification is autonomous: it re-runs whichever diagnoses the diff triggers, attributes each finding against the base branch, and fixes the `regression`-class findings itself — bounded to 3 iterations and to the agreed plan's impact scope, returning to `gh-issue-planner` when it hits either wall. `pre-existing` findings are never fixed in the same PR; they are offered to `report-to-issues`.
 
 ## Progress Dashboard Preview
 
