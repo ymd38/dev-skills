@@ -99,7 +99,8 @@ and the continuous improvement cycle is the default path (L2–L3).
 
 With `--langs`, the installer also generates:
 
-- `.github/workflows/ci.yml` — per-language jobs (Go: tidy-check / build / `test -race` / pinned golangci-lint; Node: frozen-lockfile install / lint / typecheck / test; Python: ruff / pytest). **Strict by design**: a missing lint/typecheck/test script — or zero tests — fails the job, so verification lands with the first code PR
+- `.github/workflows/ci.yml` — per-language jobs (Go: go.mod guard / tidy-check / build / `test -race` / cached pinned golangci-lint; Node: script preflight / frozen-lockfile install / lint / typecheck (TS) / test; Python: ruff / pytest). **Strict by design**: a missing lint/typecheck/test script — or zero tests — fails the job with an actionable `::error` telling you exactly what to add, so verification lands with the first code PR
+- `docs/harness-checklist.md` — the manual steps that turn strict CI green (add scripts, first test, commit lockfile, branch protection, promote trivy); delete it when done
 - `.github/workflows/security-scan.yml` — gitleaks + semgrep gating from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit. Both workflows also run on direct pushes to the default branch
 - `.gitleaks.toml` and `.semgrepignore` with a smallest-unit-only allowlist policy
 - `.env.example` and `.gitignore` entries for `.env`

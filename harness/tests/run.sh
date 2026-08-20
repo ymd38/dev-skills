@@ -32,6 +32,27 @@ check "full: only trivy is continue-on-error"    "[[ \$(grep -c 'continue-on-err
 check "full: scan has push trigger"              "grep -q 'push:' '$WORK/full/.github/workflows/security-scan.yml'"
 check "full: format hook never invokes npx"      "! grep -Eq '^[^#]*\bnpx\b' '$WORK/full/.claude/hooks/post-write-format.sh'"
 check "full: checklist reports protection state" "grep -q 'protection:' '$WORK/full.out'"
+check "full: node preflight validates scripts"   "grep -q 'Validate required package scripts' '$WORK/full/.github/workflows/ci.yml'"
+check "full: go.mod guard before setup-go"       "grep -q 'Check go.mod exists' '$WORK/full/.github/workflows/ci.yml'"
+check "full: golangci-lint cache pinned by SHA"  "grep -q 'actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830' '$WORK/full/.github/workflows/ci.yml'"
+check "full: TS job has Typecheck step"          "grep -q 'name: Typecheck' '$WORK/full/.github/workflows/ci.yml'"
+check "full: harness-checklist.md written"       "[[ -f '$WORK/full/docs/harness-checklist.md' ]]"
+
+# ── Language-variant CI jobs ─────────────────
+mkdir -p "$WORK/jsonly" "$WORK/pyonly"
+bash "$SETUP" --target "$WORK/jsonly" --langs javascript --pm npm >/dev/null 2>&1
+check "js-only: no Typecheck step"               "! grep -q 'name: Typecheck' '$WORK/jsonly/.github/workflows/ci.yml'"
+check "js-only: required list lacks typecheck"   "! grep -q \"'typecheck'\" '$WORK/jsonly/.github/workflows/ci.yml'"
+bash "$SETUP" --target "$WORK/pyonly" --langs python >/dev/null 2>&1
+check "python: pytest exit-5 annotated"          "grep -q 'No tests collected' '$WORK/pyonly/.github/workflows/ci.yml'"
+check "python: no node audit job"                "! grep -q 'dep-audit-node' '$WORK/pyonly/.github/workflows/security-scan.yml'"
+check "python: all CI files written (no abort)"  "[[ -f '$WORK/pyonly/.gitleaks.toml' && -f '$WORK/pyonly/.semgrepignore' ]]"
+mkdir -p "$WORK/bunts"
+check "bun: setup exits 0 without audit job"     "bash '$SETUP' --target '$WORK/bunts' --langs typescript --pm bun"
+if python3 -c 'import yaml' >/dev/null 2>&1; then
+  check "yaml: js-only ci.yml parses" "python3 -c \"import yaml; yaml.safe_load(open('$WORK/jsonly/.github/workflows/ci.yml'))\""
+  check "yaml: py-only ci.yml parses" "python3 -c \"import yaml; yaml.safe_load(open('$WORK/pyonly/.github/workflows/ci.yml'))\""
+fi
 
 # ── 2. YAML validity (needs python3 + pyyaml) ─
 if python3 -c 'import yaml' >/dev/null 2>&1; then

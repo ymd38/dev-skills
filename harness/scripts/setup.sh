@@ -307,7 +307,15 @@ go_ci_job() {
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check go.mod exists
+        # Before setup-go, which itself reads go.mod (go-version-file).
+        run: |
+          if [ ! -f go.mod ]; then
+            echo "::error title=Missing go.mod::Run 'go mod init <module>' and commit go.mod before the first Go PR."
+            exit 1
+          fi
       - uses: actions/setup-go@v5
+        id: go
         with:
           go-version-file: go.mod
       - name: go mod tidy check
@@ -319,20 +327,72 @@ go_ci_job() {
         run: go build ./...
       - name: Test (race)
         run: go test ./... -race
+      - name: Cache golangci-lint
+        # Dedicated versioned tool dir; cold installs keep Go module checksum
+        # verification, warm runs skip the compile.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.golangci-lint-bin/v2.12.2
+          key: golangci-lint-${{ runner.os }}-${{ runner.arch }}-go${{ steps.go.outputs.go-version }}-v2.12.2
       - name: Lint
-        # Supply chain: pin the version (never @latest).
+        # Supply chain: exact pinned version (never @latest).
         run: |
-          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
-          golangci-lint run --timeout=5m
+          BIN="$HOME/.golangci-lint-bin/v2.12.2"
+          if [ ! -x "$BIN/golangci-lint" ]; then
+            GOBIN="$BIN" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+          fi
+          "$BIN/golangci-lint" version
+          "$BIN/golangci-lint" run --timeout=5m
 EOF
 }
 
 node_ci_job() {
-  echo "  node:"
-  echo "    name: Node (lint, typecheck, test)"
-  echo "    runs-on: ubuntu-latest"
-  echo "    steps:"
-  echo "      - uses: actions/checkout@v4"
+  local req="'lint', 'test'" run_prefix ts=0
+  if has_lang typescript; then ts=1; req="'lint', 'typecheck', 'test'"; fi
+  case "$PM" in
+    pnpm) run_prefix="pnpm run" ;;
+    npm)  run_prefix="npm run" ;;
+    yarn) run_prefix="yarn" ;;
+    bun)  run_prefix="bun run" ;;
+  esac
+
+  cat <<'EOF'
+  node:
+    name: Node (lint, typecheck, test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Preflight before install: strict by design (shift-left), but fail with
+      # an actionable message instead of a raw "missing script" error. The
+      # manifest is parsed directly — package-manager stderr is version-fragile.
+      - name: Validate required package scripts
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          if (!fs.existsSync('package.json')) {
+            console.error('::error file=package.json,title=Missing package.json::Create package.json with the required scripts before the first code PR.');
+            process.exit(1);
+          }
+          let pkg;
+          try { pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); }
+          catch (e) {
+            console.error('::error file=package.json,title=Invalid package.json::package.json is not valid JSON.');
+            process.exit(1);
+          }
+EOF
+  printf '          const required = [%s];\n' "$req"
+  cat <<'EOF'
+          let failed = false;
+          for (const name of required) {
+            const v = (pkg.scripts || {})[name];
+            if (typeof v !== 'string' || v.trim() === '') {
+              console.error('::error file=package.json,title=Missing npm script::Add scripts.' + name + ' to package.json before the first code PR.');
+              failed = true;
+            }
+          }
+          if (failed) process.exit(1);
+          NODE
+EOF
   case "$PM" in
     pnpm)
       cat <<'EOF'
@@ -345,14 +405,6 @@ node_ci_job() {
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      # Strict by design (shift-left): a missing lint/typecheck/test script
-      # fails the job. Add the scripts before the first code PR.
-      - name: Lint
-        run: pnpm run lint
-      - name: Typecheck
-        run: pnpm run typecheck
-      - name: Test
-        run: pnpm run test
 EOF
       ;;
     npm)
@@ -363,14 +415,6 @@ EOF
           cache: npm
       - name: Install dependencies
         run: npm ci
-      # Strict by design (shift-left): a missing lint/typecheck/test script
-      # fails the job. Add the scripts before the first code PR.
-      - name: Lint
-        run: npm run lint
-      - name: Typecheck
-        run: npm run typecheck
-      - name: Test
-        run: npm run test
 EOF
       ;;
     yarn)
@@ -381,14 +425,6 @@ EOF
           cache: yarn
       - name: Install dependencies
         run: yarn install --frozen-lockfile
-      # Strict by design (shift-left): a missing lint/typecheck/test script
-      # fails the job. Add the scripts before the first code PR.
-      - name: Lint
-        run: yarn lint
-      - name: Typecheck
-        run: yarn typecheck
-      - name: Test
-        run: yarn test
 EOF
       ;;
     bun)
@@ -396,17 +432,14 @@ EOF
       - uses: oven-sh/setup-bun@v2
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      # Strict by design (shift-left): a missing lint/typecheck/test script
-      # fails the job. Add the scripts before the first code PR.
-      - name: Lint
-        run: bun run lint
-      - name: Typecheck
-        run: bun run typecheck
-      - name: Test
-        run: bun run test
 EOF
       ;;
   esac
+  printf '      - name: Lint\n        run: %s lint\n' "$run_prefix"
+  if [[ "$ts" == "1" ]]; then
+    printf '      - name: Typecheck\n        run: %s typecheck\n' "$run_prefix"
+  fi
+  printf '      - name: Test\n        run: %s test\n' "$run_prefix"
 }
 
 python_ci_job() {
@@ -427,8 +460,15 @@ python_ci_job() {
           uv run ruff format --check .
       - name: Test
         # Strict by design (shift-left): "no tests collected" (exit 5) fails
-        # the job. Land the first test with the first code PR.
-        run: uv run pytest -q
+        # the job — annotated so the fix is obvious. Other codes pass through.
+        run: |
+          set +e
+          uv run pytest -q
+          status=$?
+          if [ "$status" = "5" ]; then
+            echo "::error title=No tests collected::Add at least one test with the first code PR (pytest exit 5)."
+          fi
+          exit "$status"
 EOF
       ;;
     pip)
@@ -446,8 +486,15 @@ EOF
           ruff format --check .
       - name: Test
         # Strict by design (shift-left): "no tests collected" (exit 5) fails
-        # the job. Land the first test with the first code PR.
-        run: pytest -q
+        # the job — annotated so the fix is obvious. Other codes pass through.
+        run: |
+          set +e
+          pytest -q
+          status=$?
+          if [ "$status" = "5" ]; then
+            echo "::error title=No tests collected::Add at least one test with the first code PR (pytest exit 5)."
+          fi
+          exit "$status"
 EOF
       ;;
     poetry)
@@ -465,8 +512,15 @@ EOF
           poetry run ruff format --check .
       - name: Test
         # Strict by design (shift-left): "no tests collected" (exit 5) fails
-        # the job. Land the first test with the first code PR.
-        run: poetry run pytest -q
+        # the job — annotated so the fix is obvious. Other codes pass through.
+        run: |
+          set +e
+          poetry run pytest -q
+          status=$?
+          if [ "$status" = "5" ]; then
+            echo "::error title=No tests collected::Add at least one test with the first code PR (pytest exit 5)."
+          fi
+          exit "$status"
 EOF
       ;;
   esac
@@ -546,7 +600,7 @@ else
         "{{CI_PATHS}}")             printf '%s' "$CI_PATHS" ;;
         "{{CI_JOBS}}")              printf '%s' "$CI_JOBS" ;;
         "{{SEMGREP_LANG_CONFIGS}}") printf '%s' "$SEMGREP_CONFIGS" ;;
-        "{{NODE_AUDIT_JOB}}")       [[ -n "$NODE_AUDIT_JOB" ]] && printf '%s\n' "$NODE_AUDIT_JOB" ;;
+        "{{NODE_AUDIT_JOB}}")       if [[ -n "$NODE_AUDIT_JOB" ]]; then printf '%s\n' "$NODE_AUDIT_JOB"; fi ;;
         *)
           line=${line//\{\{DEFAULT_BRANCH\}\}/$BRANCH}
           printf '%s\n' "$line"
@@ -603,6 +657,53 @@ if [[ ! -f "$TARGET/.env.example" ]]; then
   env_notes="$env_notes, .env.example created"
 fi
 ST_ENV="$env_notes"
+fi
+
+# ── Post-setup checklist (docs/harness-checklist.md) ──
+ST_CHECKLIST="skipped (no CI generated)"
+if [[ "$CI_GENERATED" == "1" ]]; then
+  CHECKLIST="$TARGET/docs/harness-checklist.md"
+  if [[ -f "$CHECKLIST" && "$FORCE" != "1" ]]; then
+    ST_CHECKLIST="kept existing"
+  else
+    mkdir -p "$TARGET/docs"
+    lockfile=""
+    case "$PM" in
+      pnpm) lockfile="pnpm-lock.yaml" ;;
+      npm)  lockfile="package-lock.json" ;;
+      yarn) lockfile="yarn.lock" ;;
+      bun)  lockfile="bun.lock" ;;
+    esac
+    {
+      echo "# Harness setup checklist"
+      echo
+      echo "Generated by dev-skills setup. CI is strict by design — these are the"
+      echo "manual steps that turn it green and make the gates actually gate."
+      echo
+      echo "- [ ] Commit \`.claude/\`, \`CLAUDE.md\`, \`.github/\`, \`.gitleaks.toml\`, \`.semgrepignore\` and push \`$BRANCH\`"
+      if has_lang go; then
+        echo "- [ ] Go: \`go mod init <module>\` and commit \`go.mod\` (CI fails without it)"
+      fi
+      if has_lang typescript || has_lang javascript; then
+        req_scripts="lint / test"
+        has_lang typescript && req_scripts="lint / typecheck / test"
+        echo "- [ ] Node: add \`$req_scripts\` scripts to \`package.json\` (CI preflight fails without them)"
+        echo "- [ ] Node: commit \`$lockfile\` (frozen-lockfile install requires it)"
+      fi
+      if has_lang python; then
+        echo "- [ ] Python: add the first test — pytest \"no tests collected\" (exit 5) fails CI by design"
+      else
+        echo "- [ ] Write the first test with the first code PR — zero tests fail CI by design"
+      fi
+      echo "- [ ] After the first push: \`setup.sh --protect\` (requires repo ADMIN) so checks become required and actually block merges"
+      echo "- [ ] Review trivy findings; once triaged, delete \`continue-on-error: true\` in \`security-scan.yml\` (maturity Stage 1)"
+      echo "- [ ] Restart Claude Code so the hooks load"
+      echo "- [ ] Adjust CLAUDE.md commands if the defaults don't match your project"
+      echo
+      echo "Delete this file when everything is checked."
+    } >"$CHECKLIST"
+    ST_CHECKLIST="written docs/harness-checklist.md"
+  fi
 fi
 
 # ── Skills ───────────────────────────────────
@@ -665,6 +766,7 @@ cat <<EOF
   rules:      $ST_RULES
   CLAUDE.md:  $ST_CLAUDE
   CI:         $ST_CI
+  checklist:  $ST_CHECKLIST
   protection: $ST_PROTECT
   env guard:  $ST_ENV
   skills:     $ST_SKILLS
