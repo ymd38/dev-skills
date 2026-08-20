@@ -46,7 +46,7 @@ are handed to `report-to-issues` instead of being fixed in the same PR.
 | **Resolve** | `gh-issue-resolver` | Pick up the agreed plan comment, create a branch, implement, run tests, open a PR |
 | **Verify** | `gh-issue-resolver` (Step 8) | Re-run the triggered diagnoses on the diff, attribute each finding, **autonomously fix the regressions this change caused**, and hand pre-existing findings to `report-to-issues`. Bounded to 3 iterations and the agreed plan's impact scope |
 
-> **Note:** `spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation.
+> **Note:** `spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation. `dev-skills-setup` is also independent: it installs the harness that makes this cycle the default path in a new project.
 
 ## Available Skills
 
@@ -61,10 +61,49 @@ are handed to `report-to-issues` instead of being fixed in the same PR.
 | [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Fetch a GitHub Issue by ID, investigate related code, propose a structured response plan (approach, impact scope, implementation steps), and post the agreed plan as an issue comment. Implementation is out of scope. |
 | [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by `gh-issue-planner`. Creates a branch, applies the agreed plan, runs tests, opens a Pull Request, then re-runs the diagnosis and autonomously fixes the regressions its own change caused. |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | Generate an interactive HTML dashboard that visualizes quality scores and security findings over time from JSON summaries. |
+| [dev-skills-setup](skills/dev-skills-setup/SKILL.md) | Install the full harness (CLAUDE.md + hooks + settings + rules) into the current project through a short interview — languages and commands are asked, never auto-detected. |
 
 ## Installation
 
-### Option 1: CLI Install (Recommended)
+### Full harness (recommended for new projects)
+
+Skills alone give workflows (L1). The full harness adds mechanical guardrails —
+format-on-write and dangerous-command hooks, a lean CLAUDE.md, and cycle rules —
+so the continuous improvement cycle is the default path (L2–L3).
+
+| Entry point | When to use |
+|-------------|-------------|
+| `curl \| bash` one-liner | Fresh machine / CI / "just drop the files in" (non-interactive, flags required) |
+| `harness/scripts/setup.sh` | You already cloned this repo |
+| `/dev-skills-setup` in Claude Code | Decide languages and commands interactively (no auto-detection) |
+
+```bash
+# One-liner — full (languages are explicit, never detected)
+curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+  | bash -s -- --langs go,typescript --pm pnpm --with-skills
+
+# One-liner — minimal (rails only; decide languages later via /dev-skills-setup)
+curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+  | bash -s -- --minimal
+
+# From a clone
+./harness/scripts/setup.sh --target /path/to/your-project --langs python --python-pm uv
+```
+
+Prefer inspecting scripts before piping to bash:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh -o install.sh
+less install.sh && bash install.sh --langs go
+```
+
+Existing `CLAUDE.md` / `.claude/settings.json` / hooks are never overwritten
+(pass `--force` to override); `settings.json` hooks are merged, not replaced.
+Supported languages: Go, Python, TypeScript, JavaScript. Run `setup.sh --help` for all flags.
+
+### Skills only
+
+#### Option 1: CLI Install (Recommended)
 
 ```bash
 npx skills add ymd38/dev-skills
@@ -78,7 +117,7 @@ To install a single skill:
 npx skills add ymd38/dev-skills --skill spec-doc
 ```
 
-### Option 2: Manual Copy
+#### Option 2: Manual Copy
 
 Copy any skill directory into your project:
 
@@ -92,7 +131,7 @@ Or copy all skills at once:
 cp -r skills/* .claude/skills/
 ```
 
-### Option 3: Git Submodule
+#### Option 3: Git Submodule
 
 Add as a submodule to keep skills up to date with upstream changes:
 
@@ -133,6 +172,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 
 "Generate a progress dashboard" / "Show improvement trends"
 → Uses progress-dashboard skill
+
+"Set up the harness" / "セットアップして" / "ハーネスを入れて"
+→ Uses dev-skills-setup skill (interview-style, writes only after approval)
 ```
 
 You can also invoke skills directly:
@@ -147,6 +189,7 @@ You can also invoke skills directly:
 /gh-issue-planner
 /gh-issue-resolver
 /progress-dashboard
+/dev-skills-setup
 ```
 
 ## Skill Categories
@@ -171,6 +214,9 @@ You can also invoke skills directly:
 - `gh-issue-drafter` — Takes a loose, hand-written "what I want" and drafts the structure it almost always lacks (machine-checkable 完了条件, 触らない範囲, optional 設計方針). After author approval, files the Issue tagged with `<!-- gh-issue-drafter:scoped-issue -->` so `gh-issue-planner` treats the scope as binding. The human-authored counterpart to `report-to-issues`.
 - `gh-issue-planner` — Fetches a GitHub Issue via `gh` CLI, classifies it (bug/feature/refactor/docs), searches related code, and presents a structured plan (approach, impact scope, steps, open questions). Posts the agreed plan as an issue comment tagged with `<!-- gh-issue-planner:agreed-plan -->`.
 - `gh-issue-resolver` — Picks up the agreed plan comment posted by `gh-issue-planner`, creates a feature branch, applies the changes, runs tests, opens a Pull Request, and verifies the fix against the original issue. Verification is autonomous: it re-runs whichever diagnoses the diff triggers, attributes each finding against the base branch, and fixes the `regression`-class findings itself — bounded to 3 iterations and to the agreed plan's impact scope, returning to `gh-issue-planner` when it hits either wall. `pre-existing` findings are never fixed in the same PR; they are offered to `report-to-issues`.
+
+### Setup
+- `dev-skills-setup` — Installs the full harness into the current project through a short interview: a lean `CLAUDE.md` (Stack & commands, cycle, hard rules), four hooks (format-on-write, dangerous-bash guard, SessionStart context, Stop nudge), a merged `.claude/settings.json`, and `.claude/rules/dev-skills-cycle.md`. Languages (Go / Python / TypeScript / JavaScript) are asked, never auto-detected; nothing is written before the confirmation summary is approved. The non-interactive counterparts are `harness/scripts/install.sh` (one-liner) and `harness/scripts/setup.sh`.
 
 ## Progress Dashboard Preview
 
