@@ -34,6 +34,26 @@ Ask one phase at a time and wait for answers. If the user says
 "use defaults", still require the primary language choice, then apply
 the defaults table below to everything else.
 
+### How to ask (question-tool contract)
+
+When a structured question tool (e.g. AskUserQuestion) is available, use one
+call per phase, and keep every call within the tool's contract — violating it
+aborts the turn with "Invalid tool parameters":
+
+- At most 4 questions per call; **every question needs 2–4 predefined
+  options** — never an empty or single-option list. A free-text "Other"
+  choice is provided by the tool automatically; rely on it for custom values
+  instead of inventing an "enter manually" option list.
+- Free-form items (project name, custom commands) must still offer 2+
+  options: make option 1 the recommended default (e.g. "Use directory name:
+  <dir> (Recommended)") and a sensible alternative; custom values arrive via
+  the built-in Other.
+- Multi-choice items (additional languages, components) use the tool's
+  multi-select mode.
+- If the tool is unavailable or returns an error, fall back to asking the
+  same questions as plain chat text and wait for the answers — never skip a
+  phase because the tool failed.
+
 ### Phase 0 — Preconditions
 
 1. Confirm the target is a git repository (offer `git init` if not).
@@ -45,11 +65,14 @@ the defaults table below to everything else.
 
 ### Phase 1 — Project skeleton (required)
 
-- **Q1. Project name** — propose the directory name as default.
+- **Q1. Project name** — options: "Use directory name: <dir> (Recommended)" /
+  "Use repository name" (custom names come via Other).
 - **Q2. Primary language (choose exactly one):**
   Go / Python / TypeScript / JavaScript.
-- **Q3. Additional languages** — none, or any others from the same list.
-- **Q4. Default branch** — propose `main`.
+- **Q3. Additional languages** (multi-select) — none, or any others from the
+  same list.
+- **Q4. Default branch** — options: `main` (Recommended) / `master`
+  (anything else via Other).
 
 ### Phase 2 — Per-language commands
 
