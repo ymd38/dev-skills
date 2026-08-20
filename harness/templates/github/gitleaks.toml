@@ -1,0 +1,14 @@
+title = "Gitleaks configuration (dev-skills harness)"
+
+# Inherit the gitleaks default rules.
+# When a false positive appears, allowlist the smallest possible unit
+# (an exact regex / stopword). Never allowlist whole files or directories —
+# that becomes a secret-scan bypass.
+[extend]
+useDefault = true
+
+# [allowlist]
+# description = "Explain WHY each entry is a deterministic non-secret"
+# regexes = [
+#     '''^0123456789abcdef0123456789abcdef$''',
+# ]

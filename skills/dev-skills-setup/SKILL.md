@@ -56,14 +56,14 @@ the defaults table below to everything else.
 Ask for the primary language in full; for additional languages a quick
 confirm of the defaults is enough. Propose these defaults:
 
-| Language | Install | Test | Lint | Format (hook) |
-|----------|---------|------|------|----------------|
-| Go | `go mod download` | `go test ./...` | `golangci-lint run` (fallback `go vet ./...`) | `goimports` (fallback `gofmt`) |
-| Python (uv) | `uv sync` | `uv run pytest` | `uv run ruff check` | `uv run ruff format` |
-| Python (pip) | `pip install -e .` | `pytest` | `ruff check` | `ruff format` |
-| Python (poetry) | `poetry install` | `poetry run pytest` | `poetry run ruff check` | `poetry run ruff format` |
-| TypeScript | `{pm} install` | `{pm} test` | `{pm} run lint` | Prettier |
-| JavaScript | `{pm} install` | `{pm} test` | `{pm} run lint` | Prettier |
+| Language        | Install            | Test                | Lint                                          | Format (hook)                  |
+| --------------- | ------------------ | ------------------- | --------------------------------------------- | ------------------------------ |
+| Go              | `go mod download`  | `go test ./...`     | `golangci-lint run` (fallback `go vet ./...`) | `goimports` (fallback `gofmt`) |
+| Python (uv)     | `uv sync`          | `uv run pytest`     | `uv run ruff check`                           | `uv run ruff format`           |
+| Python (pip)    | `pip install -e .` | `pytest`            | `ruff check`                                  | `ruff format`                  |
+| Python (poetry) | `poetry install`   | `poetry run pytest` | `poetry run ruff check`                       | `poetry run ruff format`       |
+| TypeScript      | `{pm} install`     | `{pm} test`         | `{pm} run lint`                               | Prettier                       |
+| JavaScript      | `{pm} install`     | `{pm} test`         | `{pm} run lint`                               | Prettier                       |
 
 - Node projects: ask the package manager first (pnpm / npm / yarn / bun;
   propose pnpm), then substitute `{pm}`.
@@ -78,7 +78,11 @@ confirm of the defaults is enough. Propose these defaults:
 - **Q-H1. Components** (multi-select, all recommended ON by default):
   CLAUDE.md / skills (`npx skills add ymd38/dev-skills`) /
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
-  `.claude/rules/dev-skills-cycle.md`.
+  `.claude/rules/dev-skills-cycle.md` /
+  GitHub Actions CI (`ci.yml` per language + `security-scan.yml` +
+  `.gitleaks.toml`; secret scan gates from day one, trivy/semgrep start
+  as informational `continue-on-error`) /
+  .env guard (`.gitignore` entries + `.env.example`).
 - **Q-H2. Per existing file**: merge (append only the missing sections) /
   back up then replace / skip.
 - **Q-H3. Bash guard strength**: standard (rm -rf /, force-push to the
@@ -93,7 +97,7 @@ modified. Wait for explicit approval. On approval, apply as follows.
 **Preferred path — run the installer, then refine:**
 
 1. Locate `harness/scripts/setup.sh`:
-   - in this repo if it *is* dev-skills or contains a clone/submodule, else
+   - in this repo if it _is_ dev-skills or contains a clone/submodule, else
    - fetch via the official one-liner (network required):
 
      ```bash
@@ -103,8 +107,10 @@ modified. Wait for explicit approval. On approval, apply as follows.
 
    Map answers to flags: languages (primary first) → `--langs`,
    Node PM → `--pm`, Python PM → `--python-pm`, pip guard → `--guard-pip`,
-   skills component ON → `--with-skills`. The installer never overwrites
-   existing files, which is exactly the merge-safe behavior wanted here.
+   skills component ON → `--with-skills`, CI component OFF → `--no-ci`.
+   The installer never overwrites existing files, which is exactly the
+   merge-safe behavior wanted here.
+
 2. Then reconcile whatever the installer reported as "kept existing"
    against the user's Phase 3 answers:
    - CLAUDE.md kept + user chose **merge** → append only the missing
@@ -141,7 +147,7 @@ session) is needed before the guard/format hooks take effect.
 
 ## Stop conditions
 
-- User declines the Phase 4 summary → stop after reporting what *would*
+- User declines the Phase 4 summary → stop after reporting what _would_
   have changed. Write nothing.
 - User declines an overwrite → keep the file, note it in the checklist.
 - Unknown/other language requested → set up the supported languages,

@@ -19,12 +19,26 @@ Prefer this loop over ad-hoc one-shot fixes:
 
 Living docs anytime: `/spec-doc` · Trends: `/progress-dashboard`
 
-## Hard rules (also enforced by hooks where possible)
+## Hard rules (also enforced by hooks / CI where possible)
 
-- Do not commit secrets or edit `.env` files with real credentials.
+- Real credentials live only in `.env` (gitignored). Mirror every key into
+  `.env.example` with a safe placeholder. Never print secrets to logs or API responses.
 - Do not push to `{{DEFAULT_BRANCH}}` without an explicit user request.
+- No destructive operations against shared or production environments
+  (DB drops/TRUNCATE, infra teardown, bucket deletion) — local and fixtures only,
+  unless the user explicitly approves that exact command.
 - Do not widen scope beyond an agreed plan comment from `gh-issue-planner`.
-- Prefer minimal upstream fixes; never relax tests, types, or assertions to make checks pass.
+- CI must pass before merge. Fix the cause upstream; never relax tests, types,
+  lint rules, or thresholds to make a check green.
+- Supply chain: pin tool and action versions in CI (no `@latest`).
+
+## Conventions
+
+- Branch names: `<type>/<issue-number>-<summary>` (e.g. `feat/42-user-auth`).
+- Record notable decisions ("why we chose X") in `MEMORY.md` — the lightweight
+  decision log between commit messages and formal ADRs.
+- When a security scan flags a false positive, allowlist the smallest unit
+  (exact value / rule id) with a reason — never a whole file or directory.
 
 ## Notes for agents
 
