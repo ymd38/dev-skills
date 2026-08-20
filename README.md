@@ -78,7 +78,7 @@ Pick the row that matches your situation — each command is complete as written
 | **Team repo — share with teammates**                    | Install with `--copy` (default in the commands here), then commit `.claude/`, `CLAUDE.md`, and `.github/` — teammates get everything on clone, no install needed       |
 | **Prefer answering questions over flags**               | Install skills first, then run `/yds-setup` in Claude Code — interview-style, writes only after you approve the summary                                                |
 | **Default branch pushed → enforce the gates**           | `curl -fsSL <install.sh URL> \| bash -s -- --langs <yours> --protect` (needs `gh` auth with **repo admin**) — checks become required and actually block merges          |
-| **Update to the latest skills**                         | Re-run the skills install command (existing harness files are kept); for pre-`yds-` installs see the migration note below                                              |
+| **Update to the latest skills / harness**               | Re-run the install command — changed harness files appear as `<file>.new` for manual merge, nothing is overwritten; for pre-`yds-` installs see the migration note below |
 
 ```bash
 # Full one-liner (languages are explicit, never detected)
@@ -147,8 +147,13 @@ curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scrip
 less install.sh && bash install.sh --langs go
 ```
 
-Existing `CLAUDE.md` / `.claude/settings.json` / hooks are never overwritten
-(pass `--force` to override); `settings.json` hooks are merged, not replaced.
+**Existing files are never overwritten.** When an incoming file differs from
+what you already have, it is written alongside as `<file>.new` (pacman
+`.pacnew` style) — review with `diff <file> <file>.new`, merge what you want,
+then delete the `.new`. Identical files clear stale `.new` proposals;
+`--force` overwrites outright. `settings.json` is the exception: its hooks
+are merged automatically (existing entries preserved). The final checklist
+lists every proposed file.
 Supported languages: Go, Python, TypeScript, JavaScript. Run `setup.sh --help` for all flags.
 
 > **Migrating from pre-`yds-` names:** skills were renamed with a `yds-` prefix

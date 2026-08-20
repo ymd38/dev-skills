@@ -126,6 +126,27 @@ ST_SKILLS="skipped (use --with-skills or: npx skills add ymd38/dev-skills --skil
 
 mkdir -p "$TARGET/.claude/hooks" "$TARGET/.claude/rules"
 
+# ── Install policy ───────────────────────────
+# Existing files are never overwritten (except --force). When the incoming
+# version differs from what exists, it is written alongside as "<file>.new"
+# and merging is left to the user. Identical files clear any stale .new.
+NEW_FILES=()
+install_file() { # $1 src, $2 dst → sets INSTALL_RESULT: installed | kept | proposed
+  local src="$1" dst="$2"
+  if [[ ! -f "$dst" || "$FORCE" == "1" ]]; then
+    cp "$src" "$dst"
+    rm -f "$dst.new"
+    INSTALL_RESULT=installed
+  elif cmp -s "$src" "$dst"; then
+    rm -f "$dst.new"
+    INSTALL_RESULT=kept
+  else
+    cp "$src" "$dst.new"
+    NEW_FILES+=("$dst.new")
+    INSTALL_RESULT=proposed
+  fi
+}
+
 # ── Hooks (per-component selection) ──────────
 HOOK_FILES=()
 DROPPED_HOOKS=""
@@ -137,20 +158,17 @@ else
   HOOK_FILES+=(stop-suggest-cycle.sh session-start-context.sh)
 fi
 
-installed=0 kept=0
+installed=0 kept=0 proposed=0
 for f in "${HOOK_FILES[@]:-}"; do
   [[ -z "$f" ]] && continue
-  src="$TEMPLATES/hooks/$f"
-  dst="$TARGET/.claude/hooks/$f"
-  if [[ -f "$dst" && "$FORCE" != "1" ]]; then
-    kept=$((kept + 1))
-  else
-    cp "$src" "$dst"
-    chmod +x "$dst"
-    installed=$((installed + 1))
-  fi
+  install_file "$TEMPLATES/hooks/$f" "$TARGET/.claude/hooks/$f"
+  case "$INSTALL_RESULT" in
+    installed) chmod +x "$TARGET/.claude/hooks/$f"; installed=$((installed + 1)) ;;
+    kept)      kept=$((kept + 1)) ;;
+    proposed)  chmod +x "$TARGET/.claude/hooks/$f.new"; proposed=$((proposed + 1)) ;;
+  esac
 done
-ST_HOOKS="installed=$installed kept=$kept${DROPPED_HOOKS:+ (skipped: $DROPPED_HOOKS)}"
+ST_HOOKS="installed=$installed kept=$kept proposed=$proposed${DROPPED_HOOKS:+ (skipped: $DROPPED_HOOKS)}"
 
 # ── settings.json (create or merge hooks) ────
 # The settings template must only register the hooks actually installed.
@@ -189,7 +207,9 @@ elif command -v jq >/dev/null 2>&1; then
   mv "$tmp" "$SETTINGS"
   ST_SETTINGS="merged (existing hooks preserved)"
 else
-  ST_SETTINGS="SKIPPED — exists and jq unavailable; merge the hooks block from templates/settings.json.template manually"
+  cp "$SETTINGS_SRC" "$SETTINGS.new"
+  NEW_FILES+=("$SETTINGS.new")
+  ST_SETTINGS="kept existing (jq unavailable) — proposed hooks config at settings.json.new"
 fi
 
 # Enable the pip guard via settings env when requested
@@ -212,17 +232,16 @@ else
   has_lang go && RULE_FILES+=(go.md)
   has_lang python && RULE_FILES+=(python.md)
   if has_lang typescript || has_lang javascript; then RULE_FILES+=(typescript.md); fi
-  rules_installed=0 rules_kept=0
+  rules_installed=0 rules_kept=0 rules_proposed=0
   for f in "${RULE_FILES[@]}"; do
-    dst="$TARGET/.claude/rules/$f"
-    if [[ -f "$dst" && "$FORCE" != "1" ]]; then
-      rules_kept=$((rules_kept + 1))
-    else
-      cp "$TEMPLATES/rules/$f" "$dst"
-      rules_installed=$((rules_installed + 1))
-    fi
+    install_file "$TEMPLATES/rules/$f" "$TARGET/.claude/rules/$f"
+    case "$INSTALL_RESULT" in
+      installed) rules_installed=$((rules_installed + 1)) ;;
+      kept)      rules_kept=$((rules_kept + 1)) ;;
+      proposed)  rules_proposed=$((rules_proposed + 1)) ;;
+    esac
   done
-  ST_RULES="installed=$rules_installed kept=$rules_kept (${RULE_FILES[*]})"
+  ST_RULES="installed=$rules_installed kept=$rules_kept proposed=$rules_proposed (${RULE_FILES[*]})"
 fi
 
 # ── CLAUDE.md ────────────────────────────────
@@ -270,8 +289,6 @@ lang_title() {
 CLAUDE_MD="$TARGET/CLAUDE.md"
 if [[ "$MINIMAL" == "1" ]]; then
   ST_CLAUDE="skipped (--minimal) — run /yds-setup in Claude Code to fill the stack"
-elif [[ -f "$CLAUDE_MD" && "$FORCE" != "1" ]]; then
-  ST_CLAUDE="kept existing — run /yds-setup in Claude Code to merge the cycle section"
 else
   primary="$(lang_title "${LANG_ARR[0]}")"
   others=""
@@ -295,6 +312,7 @@ else
     STACK_BLOCKS+=$'\n'
   done
 
+  tmp_claude="$(mktemp)"
   {
     while IFS= read -r line; do
       if [[ "$line" == "{{STACK_BLOCKS}}" ]]; then
@@ -305,8 +323,14 @@ else
         printf '%s\n' "$line"
       fi
     done <"$TEMPLATES/CLAUDE.md.template"
-  } >"$CLAUDE_MD"
-  ST_CLAUDE="created ($primary${others:+ + $others})"
+  } >"$tmp_claude"
+  install_file "$tmp_claude" "$CLAUDE_MD"
+  rm -f "$tmp_claude"
+  case "$INSTALL_RESULT" in
+    installed) ST_CLAUDE="created ($primary${others:+ + $others})" ;;
+    kept)      ST_CLAUDE="up to date" ;;
+    proposed)  ST_CLAUDE="kept existing — proposed version at CLAUDE.md.new (merge manually or via /yds-setup)" ;;
+  esac
 fi
 
 # ── GitHub Actions CI + security scan ────────
@@ -619,32 +643,23 @@ else
     done <"$1" >"$2"
   }
 
-  ci_written=0 ci_kept=0
-  if [[ -f "$TARGET/.github/workflows/ci.yml" && "$FORCE" != "1" ]]; then
-    ci_kept=$((ci_kept + 1))
-  else
-    render_workflow "$TEMPLATES/github/ci.yml" "$TARGET/.github/workflows/ci.yml"
-    ci_written=$((ci_written + 1))
-  fi
-  if [[ -f "$TARGET/.github/workflows/security-scan.yml" && "$FORCE" != "1" ]]; then
-    ci_kept=$((ci_kept + 1))
-  else
-    render_workflow "$TEMPLATES/github/security-scan.yml" "$TARGET/.github/workflows/security-scan.yml"
-    ci_written=$((ci_written + 1))
-  fi
-  if [[ -f "$TARGET/.gitleaks.toml" && "$FORCE" != "1" ]]; then
-    ci_kept=$((ci_kept + 1))
-  else
-    cp "$TEMPLATES/github/gitleaks.toml" "$TARGET/.gitleaks.toml"
-    ci_written=$((ci_written + 1))
-  fi
-  if [[ -f "$TARGET/.semgrepignore" && "$FORCE" != "1" ]]; then
-    ci_kept=$((ci_kept + 1))
-  else
-    cp "$TEMPLATES/github/semgrepignore" "$TARGET/.semgrepignore"
-    ci_written=$((ci_written + 1))
-  fi
-  ST_CI="written=$ci_written kept=$ci_kept (ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore)"
+  ci_written=0 ci_kept=0 ci_proposed=0
+  ci_count() {
+    case "$INSTALL_RESULT" in
+      installed) ci_written=$((ci_written + 1)) ;;
+      kept)      ci_kept=$((ci_kept + 1)) ;;
+      proposed)  ci_proposed=$((ci_proposed + 1)) ;;
+    esac
+  }
+  tmp_wf="$(mktemp)"
+  render_workflow "$TEMPLATES/github/ci.yml" "$tmp_wf"
+  install_file "$tmp_wf" "$TARGET/.github/workflows/ci.yml"; ci_count
+  render_workflow "$TEMPLATES/github/security-scan.yml" "$tmp_wf"
+  install_file "$tmp_wf" "$TARGET/.github/workflows/security-scan.yml"; ci_count
+  rm -f "$tmp_wf"
+  install_file "$TEMPLATES/github/gitleaks.toml" "$TARGET/.gitleaks.toml"; ci_count
+  install_file "$TEMPLATES/github/semgrepignore" "$TARGET/.semgrepignore"; ci_count
+  ST_CI="written=$ci_written kept=$ci_kept proposed=$ci_proposed (ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore)"
 fi
 
 # ── .env guard ───────────────────────────────
@@ -691,6 +706,7 @@ if [[ "$CI_GENERATED" == "1" ]]; then
       echo "manual steps that turn it green and make the gates actually gate."
       echo
       echo "- [ ] Commit \`.claude/\`, \`CLAUDE.md\`, \`.github/\`, \`.gitleaks.toml\`, \`.semgrepignore\` and push \`$BRANCH\`"
+      echo "- [ ] If re-running setup produced \`*.new\` files: diff, merge, delete them"
       if has_lang go; then
         echo "- [ ] Go: \`go mod init <module>\` and commit \`go.mod\` (CI fails without it)"
       fi
@@ -767,6 +783,11 @@ if [[ "$CI_GENERATED" == "1" ]]; then
 fi
 
 # ── Checklist ────────────────────────────────
+UPDATES_LINE="none"
+if [[ ${#NEW_FILES[@]} -gt 0 ]]; then
+  UPDATES_LINE="${#NEW_FILES[@]} proposed as *.new — diff each against its original, merge manually, then delete the .new"
+fi
+
 cat <<EOF
 
 [dev-skills harness]
@@ -780,5 +801,13 @@ cat <<EOF
   protection: $ST_PROTECT
   env guard:  $ST_ENV
   skills:     $ST_SKILLS
+  updates:    $UPDATES_LINE
   next:       open the project in Claude Code, then try "/yds-software-evaluation ." — or "/yds-setup" to refine commands interactively
 EOF
+
+if [[ ${#NEW_FILES[@]} -gt 0 ]]; then
+  echo "  proposed update files:"
+  for f in "${NEW_FILES[@]}"; do
+    echo "    - ${f#"$TARGET"/}"
+  done
+fi

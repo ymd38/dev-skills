@@ -141,8 +141,12 @@ modified. Wait for explicit approval. On approval, apply as follows.
    The installer never overwrites existing files, which is exactly the
    merge-safe behavior wanted here.
 
-2. Then reconcile whatever the installer reported as "kept existing"
-   against the user's Phase 3 answers:
+2. Then reconcile whatever the installer reported as "kept existing" or
+   "proposed" against the user's Phase 3 answers:
+   - The installer never overwrites: files that differ from the incoming
+     version are written as `<file>.new`. For each one, show the user the
+     diff and offer to merge it (or discard the `.new`) — apply only what
+     they approve, then delete the `.new` file.
    - CLAUDE.md kept + user chose **merge** → append only the missing
      sections (Stack & commands for the chosen languages, the cycle
      section, Hard rules), following `harness/templates/CLAUDE.md.template`.

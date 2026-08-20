@@ -71,7 +71,8 @@ fi
 bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm >"$WORK/rerun.out" 2>&1
 check "rerun: hooks kept"      "grep -q 'installed=0 kept=4' '$WORK/rerun.out'"
 check "rerun: CI kept"         "grep -q 'written=0 kept=4' '$WORK/rerun.out'"
-check "rerun: CLAUDE.md kept"  "grep -q 'kept existing' '$WORK/rerun.out'"
+check "rerun: CLAUDE.md up to date" "grep -q 'CLAUDE.md:  up to date' '$WORK/rerun.out'"
+check "rerun: no proposals on identical content" "grep -q 'updates:    none' '$WORK/rerun.out'"
 
 # ── 4. --minimal ─────────────────────────────
 mkdir -p "$WORK/min"
@@ -136,6 +137,21 @@ allowed|git push origin feature/x
 allowed|kubectl delete pod my-pod
 CASES
 fi
+
+# ── 8.5 Drift → *.new proposals; --force clears them ──
+echo "# local tweak" >>"$WORK/full/.claude/hooks/pre-bash-guard.sh"
+printf '# custom header\n' | cat - "$WORK/full/.github/workflows/ci.yml" >"$WORK/full/.github/workflows/ci.yml.tmp"
+mv "$WORK/full/.github/workflows/ci.yml.tmp" "$WORK/full/.github/workflows/ci.yml"
+bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm >"$WORK/drift.out" 2>&1
+check "drift: hook proposal written"     "[[ -f '$WORK/full/.claude/hooks/pre-bash-guard.sh.new' ]]"
+check "drift: hook proposal executable"  "[[ -x '$WORK/full/.claude/hooks/pre-bash-guard.sh.new' ]]"
+check "drift: original hook untouched"   "grep -q 'local tweak' '$WORK/full/.claude/hooks/pre-bash-guard.sh'"
+check "drift: ci proposal written"       "[[ -f '$WORK/full/.github/workflows/ci.yml.new' ]]"
+check "drift: original ci untouched"     "grep -q 'custom header' '$WORK/full/.github/workflows/ci.yml'"
+check "drift: proposals listed in output" "grep -q 'proposed update files:' '$WORK/drift.out'"
+bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm --force >/dev/null 2>&1
+check "force: overwrites drifted files"  "! grep -q 'local tweak' '$WORK/full/.claude/hooks/pre-bash-guard.sh'"
+check "force: clears stale .new files"   "[[ ! -f '$WORK/full/.claude/hooks/pre-bash-guard.sh.new' && ! -f '$WORK/full/.github/workflows/ci.yml.new' ]]"
 
 # ── 9. Arg validation ────────────────────────
 check "args: no flags fails"       "! bash '$SETUP' --target '$WORK' >/dev/null 2>&1"
