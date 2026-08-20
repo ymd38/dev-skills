@@ -1,6 +1,6 @@
 # Agent Skills
 
-A collection of AI agent skills for software engineering workflows — code quality reviews, living documentation, and security audits. Built for developers and engineering teams who want Claude Code to apply expert-level analysis to their codebases.
+A collection of Claude Code agent skills plus a full **project harness** for AI-assisted development — code quality reviews, security audits, living documentation, GitHub-issue-driven implementation with autonomous verification, and day-one CI/security gates (gitleaks, Semgrep, Trivy). Built on **harness engineering** and **loop engineering** principles: the environment enforces quality mechanically (hooks, strict CI, branch protection) while a bounded improvement loop (diagnose → issue → plan → resolve ⇄ verify) does the work.
 
 ## What are Skills?
 
