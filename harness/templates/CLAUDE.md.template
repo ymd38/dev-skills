@@ -23,5 +23,7 @@ Diagnose (`/yds-software-evaluation`, `/yds-vulnerability-scan`, `/yds-data-vali
 → Draft/Register (`/yds-gh-issue-drafter`, `/yds-report-to-issues`)
 → Plan (`/yds-gh-issue-planner`) → Resolve+Verify (`/yds-gh-issue-resolver`).
 
-Cycle rules and conventions: `.claude/rules/dev-skills-cycle.md`.
-Long workflows live in `.claude/skills/*/SKILL.md` — keep this file short.
+Rules live in `.claude/rules/`: the cycle contract (`dev-skills-cycle.md`),
+score-aligned coding principles (`coding-principles.md` — following them is
+what a high `/yds-software-evaluation` score looks like), and per-language
+rules. Long workflows live in `.claude/skills/*/SKILL.md` — keep this file short.

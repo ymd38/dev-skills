@@ -104,6 +104,7 @@ With `--langs`, the installer also generates:
 - `.github/workflows/security-scan.yml` — gitleaks + semgrep gating from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit. Both workflows also run on direct pushes to the default branch
 - `.gitleaks.toml` and `.semgrepignore` with a smallest-unit-only allowlist policy
 - `.env.example` and `.gitignore` entries for `.env`
+- `.claude/rules/` — the cycle contract, **score-aligned coding principles** (KISS / YAGNI plus the five evaluation pillars inverted into "write it right the first time" rules), and per-language best practices (`go.md` / `python.md` / `typescript.md`, installed per `--langs`). Each rule is tagged with the `yds-software-evaluation` pillar it scores on; the security rules preempt `yds-vulnerability-scan` findings
 
 Disable with `--no-ci`; skip individual components with `--no-format-hook` /
 `--no-bash-guard` / `--no-guidance-hooks` / `--no-rules` / `--no-env-guard`.

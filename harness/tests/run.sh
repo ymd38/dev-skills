@@ -37,6 +37,8 @@ check "full: go.mod guard before setup-go"       "grep -q 'Check go.mod exists' 
 check "full: golangci-lint cache pinned by SHA"  "grep -q 'actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830' '$WORK/full/.github/workflows/ci.yml'"
 check "full: TS job has Typecheck step"          "grep -q 'name: Typecheck' '$WORK/full/.github/workflows/ci.yml'"
 check "full: harness-checklist.md written"       "[[ -f '$WORK/full/docs/harness-checklist.md' ]]"
+check "full: coding principles installed"        "[[ -f '$WORK/full/.claude/rules/coding-principles.md' ]]"
+check "full: go + ts rules installed"            "[[ -f '$WORK/full/.claude/rules/go.md' && -f '$WORK/full/.claude/rules/typescript.md' ]]"
 
 # ── Language-variant CI jobs ─────────────────
 mkdir -p "$WORK/jsonly" "$WORK/pyonly"
@@ -45,6 +47,8 @@ check "js-only: no Typecheck step"               "! grep -q 'name: Typecheck' '$
 check "js-only: required list lacks typecheck"   "! grep -q \"'typecheck'\" '$WORK/jsonly/.github/workflows/ci.yml'"
 bash "$SETUP" --target "$WORK/pyonly" --langs python >/dev/null 2>&1
 check "python: pytest exit-5 annotated"          "grep -q 'No tests collected' '$WORK/pyonly/.github/workflows/ci.yml'"
+check "python: python rules installed"           "[[ -f '$WORK/pyonly/.claude/rules/python.md' ]]"
+check "python: no go rules"                      "[[ ! -f '$WORK/pyonly/.claude/rules/go.md' ]]"
 check "python: no node audit job"                "! grep -q 'dep-audit-node' '$WORK/pyonly/.github/workflows/security-scan.yml'"
 check "python: all CI files written (no abort)"  "[[ -f '$WORK/pyonly/.gitleaks.toml' && -f '$WORK/pyonly/.semgrepignore' ]]"
 mkdir -p "$WORK/bunts"
@@ -75,6 +79,7 @@ bash "$SETUP" --target "$WORK/min" --minimal >/dev/null 2>&1
 check "minimal: no CLAUDE.md"  "[[ ! -f '$WORK/min/CLAUDE.md' ]]"
 check "minimal: no .github"    "[[ ! -d '$WORK/min/.github' ]]"
 check "minimal: hooks present" "[[ -f '$WORK/min/.claude/hooks/pre-bash-guard.sh' ]]"
+check "minimal: principles yes, lang rules no" "[[ -f '$WORK/min/.claude/rules/coding-principles.md' && ! -f '$WORK/min/.claude/rules/go.md' ]]"
 
 # ── 5. Component opt-outs ────────────────────
 mkdir -p "$WORK/optout"

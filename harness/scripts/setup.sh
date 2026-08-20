@@ -104,6 +104,12 @@ for l in "${LANG_ARR[@]:-}"; do
   esac
 done
 
+has_lang() {
+  local l
+  for l in "${LANG_ARR[@]:-}"; do [[ "$l" == "$1" ]] && return 0; done
+  return 1
+}
+
 case "$PM" in pnpm|npm|yarn|bun) ;; *) echo "error: unsupported --pm: $PM" >&2; exit 1 ;; esac
 case "$PY_PM" in uv|pip|poetry) ;; *) echo "error: unsupported --python-pm: $PY_PM" >&2; exit 1 ;; esac
 
@@ -198,15 +204,25 @@ if [[ "$GUARD_PIP" == "1" ]]; then
   fi
 fi
 
-# ── Rules ────────────────────────────────────
-RULES="$TARGET/.claude/rules/dev-skills-cycle.md"
+# ── Rules (cycle + score-aligned coding rules) ──
 if [[ "$NO_RULES" == "1" ]]; then
   ST_RULES="skipped (--no-rules)"
-elif [[ -f "$RULES" && "$FORCE" != "1" ]]; then
-  ST_RULES="kept existing"
 else
-  cp "$TEMPLATES/rules/dev-skills-cycle.md" "$RULES"
-  ST_RULES="installed"
+  RULE_FILES=(dev-skills-cycle.md coding-principles.md)
+  has_lang go && RULE_FILES+=(go.md)
+  has_lang python && RULE_FILES+=(python.md)
+  if has_lang typescript || has_lang javascript; then RULE_FILES+=(typescript.md); fi
+  rules_installed=0 rules_kept=0
+  for f in "${RULE_FILES[@]}"; do
+    dst="$TARGET/.claude/rules/$f"
+    if [[ -f "$dst" && "$FORCE" != "1" ]]; then
+      rules_kept=$((rules_kept + 1))
+    else
+      cp "$TEMPLATES/rules/$f" "$dst"
+      rules_installed=$((rules_installed + 1))
+    fi
+  done
+  ST_RULES="installed=$rules_installed kept=$rules_kept (${RULE_FILES[*]})"
 fi
 
 # ── CLAUDE.md ────────────────────────────────
@@ -294,12 +310,6 @@ else
 fi
 
 # ── GitHub Actions CI + security scan ────────
-has_lang() {
-  local l
-  for l in "${LANG_ARR[@]:-}"; do [[ "$l" == "$1" ]] && return 0; done
-  return 1
-}
-
 go_ci_job() {
   cat <<'EOF'
   go:

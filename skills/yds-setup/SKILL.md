@@ -101,7 +101,8 @@ confirm of the defaults is enough. Propose these defaults:
 - **Q-H1. Components** (multi-select, all recommended ON by default):
   CLAUDE.md / skills (`npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`) /
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
-  `.claude/rules/dev-skills-cycle.md` /
+  `.claude/rules/` (cycle contract + score-aligned coding principles +
+  per-language rules for the chosen languages) /
   GitHub Actions CI (`ci.yml` per language + `security-scan.yml` +
   `.gitleaks.toml` + `.semgrepignore`; gitleaks and semgrep are hard
   gates from day one — shift-left — while trivy starts as informational
