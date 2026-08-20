@@ -642,7 +642,7 @@ if [[ "$CI_GENERATED" == "1" ]]; then
       if (cd "$TARGET" && gh api -X PUT "repos/$repo_slug/branches/$BRANCH/protection" --input "$payload" >/dev/null 2>&1); then
         ST_PROTECT="applied (required checks incl. Gitleaks / Semgrep on $BRANCH)"
       else
-        ST_PROTECT="FAILED to apply (needs admin rights, gh auth, and a pushed $BRANCH branch) — set required checks in GitHub settings"
+        ST_PROTECT="FAILED — branch protection requires REPOSITORY ADMIN. Verify: (1) gh auth status shows an account with admin on this repo (a 403 means the token lacks admin), (2) the $BRANCH branch is pushed. Then re-run with --protect, or set required checks manually in GitHub settings"
       fi
       rm -f "$payload"
     else

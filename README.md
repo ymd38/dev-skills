@@ -89,6 +89,17 @@ installer reports the protection state in its checklist; pass `--protect`
 (needs `gh` auth with admin on a pushed default branch) to apply required
 status checks automatically, or configure them in GitHub settings.
 
+#### Gate maturity ladder
+
+The defaults are day-one settings. Promote gates as the project matures:
+
+| Stage                   | When                                                       | Action                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **0 — Day one** (default) | Fresh project                                              | gitleaks + semgrep block; trivy informs (`continue-on-error`); CI strict (missing scripts/tests fail)                    |
+| **1 — Deps triaged**      | Trivy findings reviewed, unfixable ones in `.trivyignore` with reasons | Delete the `continue-on-error: true` line in `security-scan.yml` — trivy becomes a hard gate                             |
+| **2 — Enforced**          | Default branch pushed, repo admin available                | `setup.sh --protect` (or GitHub settings) — checks become required status checks, force-push/deletion blocked            |
+| **3 — Tightened**         | Team cadence stable, few false positives                   | Raise `--audit-level` to `moderate`, add stricter Semgrep rulesets (e.g. `p/cwe-top-25`), consider `strict: true` reviews |
+
 Installer regression tests: `bash harness/tests/run.sh`.
 
 | Entry point                        | When to use                                                                     |

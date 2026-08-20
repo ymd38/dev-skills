@@ -6,41 +6,22 @@
 
 When changes touch only one ecosystem, run that ecosystem's test command, not the whole repo.
 
-## Dev-skills continuous improvement cycle
+## Hard rules (enforced by hooks / CI where possible)
 
-Prefer this loop over ad-hoc one-shot fixes:
-
-1. **Diagnose** — `/yds-software-evaluation`, `/yds-vulnerability-scan`, `/yds-data-validation`
-2. **Register or Draft** — `/yds-report-to-issues` (machine findings) or `/yds-gh-issue-drafter` (rough ideas)
-3. **Plan** — `/yds-gh-issue-planner` (agreed plan comment required before coding)
-4. **Resolve + Verify** — `/yds-gh-issue-resolver`
-   - Fixes **regressions only** (max 3 iterations, stays inside the agreed impact scope)
-   - Pre-existing findings → offer `/yds-report-to-issues`, never silent-fix in the same PR
-
-Living docs anytime: `/yds-spec-doc` · Trends: `/yds-progress-dashboard`
-
-## Hard rules (also enforced by hooks / CI where possible)
-
-- Real credentials live only in `.env` (gitignored). Mirror every key into
-  `.env.example` with a safe placeholder. Never print secrets to logs or API responses.
+- Real credentials live only in `.env` (gitignored); mirror keys into `.env.example`.
+  Never print secrets to logs or API responses.
 - Do not push to `{{DEFAULT_BRANCH}}` without an explicit user request.
-- No destructive operations against shared or production environments
-  (DB drops/TRUNCATE, infra teardown, bucket deletion) — local and fixtures only,
-  unless the user explicitly approves that exact command.
-- Do not widen scope beyond an agreed plan comment from `yds-gh-issue-planner`.
+- No destructive operations against shared or production environments —
+  local and fixtures only, unless the user explicitly approves that exact command.
 - CI must pass before merge. Fix the cause upstream; never relax tests, types,
   lint rules, or thresholds to make a check green.
-- Supply chain: pin tool and action versions in CI (no `@latest`).
 
-## Conventions
+## Improvement cycle
 
-- Branch names: `<type>/<issue-number>-<summary>` (e.g. `feat/42-user-auth`).
-- Record notable decisions ("why we chose X") in `MEMORY.md` — the lightweight
-  decision log between commit messages and formal ADRs.
-- When a security scan flags a false positive, allowlist the smallest unit
-  (exact value / rule id) with a reason — never a whole file or directory.
+Prefer the cycle over ad-hoc one-shot fixes:
+Diagnose (`/yds-software-evaluation`, `/yds-vulnerability-scan`, `/yds-data-validation`)
+→ Draft/Register (`/yds-gh-issue-drafter`, `/yds-report-to-issues`)
+→ Plan (`/yds-gh-issue-planner`) → Resolve+Verify (`/yds-gh-issue-resolver`).
 
-## Notes for agents
-
-Long workflows live in `.claude/skills/*/SKILL.md`. Follow those when triggered.
-Keep this file short; put detail in skills and `.claude/rules/`.
+Cycle rules and conventions: `.claude/rules/dev-skills-cycle.md`.
+Long workflows live in `.claude/skills/*/SKILL.md` — keep this file short.
