@@ -1,0 +1,16 @@
+# Semgrep ignore list (dev-skills harness).
+# NOTE: creating this file replaces Semgrep's built-in default ignores,
+# so the common ones are restated below.
+#
+# Policy: Semgrep is a HARD GATE. When a false positive appears, exclude
+# the smallest possible unit (a single file, or better: an inline
+# `# nosemgrep: <rule-id>` with a reason). Never exclude whole source
+# directories — that bypasses the SAST gate.
+.git/
+:include .gitignore
+node_modules/
+dist/
+build/
+coverage/
+vendor/
+.venv/

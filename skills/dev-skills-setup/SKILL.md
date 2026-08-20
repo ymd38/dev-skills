@@ -80,8 +80,9 @@ confirm of the defaults is enough. Propose these defaults:
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
   `.claude/rules/dev-skills-cycle.md` /
   GitHub Actions CI (`ci.yml` per language + `security-scan.yml` +
-  `.gitleaks.toml`; secret scan gates from day one, trivy/semgrep start
-  as informational `continue-on-error`) /
+  `.gitleaks.toml` + `.semgrepignore`; gitleaks and semgrep are hard
+  gates from day one — shift-left — while trivy starts as informational
+  `continue-on-error`) /
   .env guard (`.gitignore` entries + `.env.example`).
 - **Q-H2. Per existing file**: merge (append only the missing sections) /
   back up then replace / skip.

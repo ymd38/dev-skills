@@ -75,8 +75,9 @@ and the continuous improvement cycle is the default path (L2–L3).
 With `--langs`, the installer also generates:
 
 - `.github/workflows/ci.yml` — per-language jobs (Go: tidy-check / build / `test -race` / pinned golangci-lint; Node: frozen-lockfile install / lint / typecheck / test; Python: ruff / pytest)
-- `.github/workflows/security-scan.yml` — gitleaks (gating from day one), trivy + semgrep (staged `continue-on-error`), Node production-dependency audit
-- `.gitleaks.toml`, `.env.example`, and `.gitignore` entries for `.env`
+- `.github/workflows/security-scan.yml` — gitleaks + semgrep as hard gates from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit
+- `.gitleaks.toml` and `.semgrepignore` with a smallest-unit-only allowlist policy
+- `.env.example` and `.gitignore` entries for `.env`
 
 Disable with `--no-ci`. Tool and action versions are pinned (no `@latest`).
 

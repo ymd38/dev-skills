@@ -533,7 +533,13 @@ else
     cp "$TEMPLATES/github/gitleaks.toml" "$TARGET/.gitleaks.toml"
     ci_written=$((ci_written + 1))
   fi
-  ST_CI="written=$ci_written kept=$ci_kept (ci.yml, security-scan.yml, .gitleaks.toml)"
+  if [[ -f "$TARGET/.semgrepignore" && "$FORCE" != "1" ]]; then
+    ci_kept=$((ci_kept + 1))
+  else
+    cp "$TEMPLATES/github/semgrepignore" "$TARGET/.semgrepignore"
+    ci_written=$((ci_written + 1))
+  fi
+  ST_CI="written=$ci_written kept=$ci_kept (ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore)"
 fi
 
 # ── .env guard ───────────────────────────────
