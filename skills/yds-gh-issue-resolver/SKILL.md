@@ -1,18 +1,18 @@
 ---
-name: gh-issue-resolver
-description: "Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by gh-issue-planner. Creates a feature branch, applies the agreed plan, runs tests, and opens a Pull Request. Use when the user asks to implement/fix/resolve a planned GitHub Issue. Triggers include requests such as Issueを実装して / Issueを修正して / Issueを対応して, implement issue #N, fix issue #N, resolve issue #N, work on issue #N. Prerequisite: an agreed plan comment must exist on the issue (run gh-issue-planner first if not)."
+name: yds-gh-issue-resolver
+description: "Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by yds-gh-issue-planner. Creates a feature branch, applies the agreed plan, runs tests, and opens a Pull Request. Use when the user asks to implement/fix/resolve a planned GitHub Issue. Triggers include requests such as Issueを実装して / Issueを修正して / Issueを対応して, implement issue #N, fix issue #N, resolve issue #N, work on issue #N. Prerequisite: an agreed plan comment must exist on the issue (run yds-gh-issue-planner first if not)."
 ---
 
 # GitHub Issue Resolver
 
 ## Overview
 
-Implement and verify a fix for a GitHub Issue, starting from the agreed response plan that `gh-issue-planner` has already posted as a comment on the issue. This skill creates a feature branch, uses a git worktree as a temporary implementation sandbox, runs tests, opens a Pull Request, and verifies the fix against the original issue.
+Implement and verify a fix for a GitHub Issue, starting from the agreed response plan that `yds-gh-issue-planner` has already posted as a comment on the issue. This skill creates a feature branch, uses a git worktree as a temporary implementation sandbox, runs tests, opens a Pull Request, and verifies the fix against the original issue.
 
 ## Prerequisites
 
-- The target issue must have an **agreed plan comment** previously posted by `gh-issue-planner`, identified by the HTML marker `<!-- gh-issue-planner:agreed-plan -->` near the end of the comment body.
-- If no such comment exists, **stop and direct the user to run `gh-issue-planner` first**. Do not improvise an unagreed plan in this skill.
+- The target issue must have an **agreed plan comment** previously posted by `yds-gh-issue-planner`, identified by the HTML marker `<!-- gh-issue-planner:agreed-plan -->` near the end of the comment body.
+- If no such comment exists, **stop and direct the user to run `yds-gh-issue-planner` first**. Do not improvise an unagreed plan in this skill.
 
 ## Workflow
 
@@ -27,7 +27,7 @@ gh issue view <id> --json number,title,body,labels,state,url,comments
 From the `comments` array:
 1. Locate the most recent comment whose body contains the marker `<!-- gh-issue-planner:agreed-plan -->`.
 2. Treat that comment as the **agreed plan** and extract the 対応方針 / 影響範囲 / 実装方法 sections.
-3. If no such comment exists, abort with a message asking the user to run `gh-issue-planner` first.
+3. If no such comment exists, abort with a message asking the user to run `yds-gh-issue-planner` first.
 
 ### Step 2: Branch and Worktree Setup
 
@@ -53,7 +53,7 @@ Apply the changes defined in the agreed plan inside the worktree directory. Foll
 - Make minimal, focused changes — do not scope-creep beyond the agreed plan
 - Run existing tests after each logical change to catch regressions early
 - Add or update tests to cover the changed behavior
-- If the agreed plan turns out to be infeasible or incomplete, **stop and return to `gh-issue-planner`** rather than silently expanding the scope here
+- If the agreed plan turns out to be infeasible or incomplete, **stop and return to `yds-gh-issue-planner`** rather than silently expanding the scope here
 
 ### Step 4: Test Verification
 
@@ -66,11 +66,11 @@ Apply the changes defined in the agreed plan inside the worktree directory. Foll
 If tests fail, diagnose and fix before proceeding. Do not skip failing tests.
 
 **If the change is data-related** (see the trigger list in Step 8.1), also run
-`data-validation` here — inside the worktree, while the main working tree still holds the
+`yds-data-validation` here — inside the worktree, while the main working tree still holds the
 base branch and attribution is cheapest:
 
 ```
-/data-validation <changed-data-scope>   # baseline: the default branch
+/yds-data-validation <changed-data-scope>   # baseline: the default branch
 ```
 
 Treat a `regression`-class FAIL exactly like a failing test: fix it now, do not proceed with
@@ -133,9 +133,9 @@ Re-run a diagnostic skill when **any** of its triggers is present in the diff:
 
 | Skill | Re-run when the diff touches |
 |-------|------------------------------|
-| `data-validation` | migrations, DDL, schema files, ORM models/entities, serializers/DTOs, queries, fixtures/seeds/factories, import-export or ETL code, validation rules, or any column/field rename or type change |
-| `vulnerability-scan` | the issue originated from `vulnerability-scan`, **or** the diff touches auth, input handling, queries, file paths, outbound requests, headers/cookies, or dependencies |
-| `software-evaluation` | the issue originated from `software-evaluation` |
+| `yds-data-validation` | migrations, DDL, schema files, ORM models/entities, serializers/DTOs, queries, fixtures/seeds/factories, import-export or ETL code, validation rules, or any column/field rename or type change |
+| `yds-vulnerability-scan` | the issue originated from `yds-vulnerability-scan`, **or** the diff touches auth, input handling, queries, file paths, outbound requests, headers/cookies, or dependencies |
+| `yds-software-evaluation` | the issue originated from `yds-software-evaluation` |
 
 Run every skill whose triggers fire. If none fire, skip to 8.5.
 
@@ -145,12 +145,12 @@ Run each selected skill against the changed scope, **passing the base ref as the
 attribution is possible:
 
 ```
-/data-validation <changed-data-scope>     # baseline: the default branch
-/vulnerability-scan <changed-path>
-/software-evaluation <changed-path>
+/yds-data-validation <changed-data-scope>     # baseline: the default branch
+/yds-vulnerability-scan <changed-path>
+/yds-software-evaluation <changed-path>
 ```
 
-`data-validation` writes no file in this mode — read its session output directly. Parse the
+`yds-data-validation` writes no file in this mode — read its session output directly. Parse the
 fixed header block it emits:
 
 ```
@@ -208,8 +208,8 @@ autonomous edits are visible to the reviewer rather than buried in the commit lo
 ```markdown
 ## Verification
 - Full test suite: pass
-- data-validation: FAIL → PASS (2 regressions fixed: D-01, D-03)
-- vulnerability-scan: not triggered
+- yds-data-validation: FAIL → PASS (2 regressions fixed: D-01, D-03)
+- yds-vulnerability-scan: not triggered
 ```
 
 #### 8.6 Hand off what is out of scope
@@ -225,14 +225,14 @@ Findings outside this change's scope (not fixed here):
   [pre-existing]   D-04  2 future-dated created_at values
   [environmental]  D-05  payments.yml is not loaded by the test setup
 
-Register these as GitHub Issues? (report-to-issues)
+Register these as GitHub Issues? (yds-report-to-issues)
 ```
 
-If the user agrees, hand the findings to `report-to-issues`.
+If the user agrees, hand the findings to `yds-report-to-issues`.
 
 #### 8.7 Stop conditions — return to the planner
 
-When the loop cannot close, **stop and return to `gh-issue-planner`**. Do not merge, do not
+When the loop cannot close, **stop and return to `yds-gh-issue-planner`**. Do not merge, do not
 mark the issue resolved, and do not paper over the failure:
 
 ```
@@ -244,7 +244,7 @@ Outstanding regressions:
 Reason: the fix requires changing internal/model/order.go, which is outside the
 agreed plan's 影響範囲 (db/migrations/ only).
 
-The agreed plan needs revision. Re-run gh-issue-planner on Issue #<id>.
+The agreed plan needs revision. Re-run yds-gh-issue-planner on Issue #<id>.
 ```
 
 Leave the branch and the PR in place — the planner needs the work to reason about.
@@ -253,7 +253,7 @@ Leave the branch and the PR in place — the planner needs the work to reason ab
 
 ```
 ✅ Implementation complete and verified for Issue #<id>.
-   Tests: pass | data-validation: PASS | 2 regressions fixed during verification
+   Tests: pass | yds-data-validation: PASS | 2 regressions fixed during verification
 ```
 
 This closes the improvement cycle loop — and closes it with the fix already applied, not with
@@ -278,13 +278,13 @@ git fetch --prune
 
 ## Key Principles
 
-- **Never start implementation without an agreed plan comment** posted by `gh-issue-planner`
+- **Never start implementation without an agreed plan comment** posted by `yds-gh-issue-planner`
 - Stay strictly within the agreed plan — no scope creep
 - **Verify autonomously, remediate only regressions.** Re-running the diagnosis and fixing what
   this change broke is this skill's job, not a suggestion handed back to the user. What this
   change did *not* break is not this skill's job — attribution is what separates the two
 - **The autonomy is bounded, not open-ended**: 3 loop iterations, and the agreed plan's 影響範囲
-  is a hard wall. Hitting either boundary means returning to `gh-issue-planner`, never widening
+  is a hard wall. Hitting either boundary means returning to `yds-gh-issue-planner`, never widening
   the scope unilaterally
 - Never skip or weaken failing tests; fix the root cause instead
 - **Never relax a constraint, threshold, or assertion to make a check pass** — fix the writer

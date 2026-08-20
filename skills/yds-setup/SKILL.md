@@ -1,6 +1,6 @@
 ---
-name: dev-skills-setup
-description: "Install the full dev-skills harness into the current project through a short interview: CLAUDE.md, hooks, .claude/settings.json, rules, and skill wiring. Asks — never auto-detects — the languages (Go / Python / TypeScript / JavaScript) and commands, then writes files only after an approved summary. Use when the user asks to set up / install / bootstrap dev-skills, the harness, or the continuous improvement cycle. Triggers: セットアップして, ハーネスを入れて, harnessを入れて, dev-skillsを導入して, プロジェクトを初期化して, '/dev-skills-setup', 'set up the harness', 'install dev-skills', 'bootstrap this project'."
+name: yds-setup
+description: "Install the full dev-skills harness into the current project through a short interview: CLAUDE.md, hooks, .claude/settings.json, rules, and skill wiring. Asks — never auto-detects — the languages (Go / Python / TypeScript / JavaScript) and commands, then writes files only after an approved summary. Use when the user asks to set up / install / bootstrap dev-skills, the harness, or the continuous improvement cycle. Triggers: セットアップして, ハーネスを入れて, harnessを入れて, dev-skillsを導入して, プロジェクトを初期化して, '/yds-setup', 'set up the harness', 'install dev-skills', 'bootstrap this project'."
 ---
 
 # dev-skills Full Harness Setup (Interview Mode)
@@ -147,7 +147,7 @@ Print a final checklist:
   rules:      OK / skipped
   CI:         OK / skipped
   protection: configured / NOT CONFIGURED / applied
-  next:       restart Claude Code to load hooks, then try /software-evaluation .
+  next:       restart Claude Code to load hooks, then try /yds-software-evaluation .
 ```
 
 Two follow-ups matter for the gates to actually gate:

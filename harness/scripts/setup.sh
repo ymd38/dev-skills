@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # dev-skills harness installer (non-interactive).
 # No language auto-detection by design: pass --langs explicitly, or --minimal
-# to install only the mechanical rails and decide languages later via /dev-skills-setup.
+# to install only the mechanical rails and decide languages later via /yds-setup.
 set -euo pipefail
 
 HARNESS_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +16,7 @@ Required (one of):
   --langs LIST      Comma-separated languages. First entry is the primary.
                     Supported: go, python, typescript, javascript
   --minimal         Install hooks + settings + rules only (no CLAUDE.md).
-                    Fill the stack later with /dev-skills-setup in Claude Code.
+                    Fill the stack later with /yds-setup in Claude Code.
 
 Options:
   --target DIR      Target project directory (default: current directory)
@@ -253,9 +253,9 @@ lang_title() {
 
 CLAUDE_MD="$TARGET/CLAUDE.md"
 if [[ "$MINIMAL" == "1" ]]; then
-  ST_CLAUDE="skipped (--minimal) — run /dev-skills-setup in Claude Code to fill the stack"
+  ST_CLAUDE="skipped (--minimal) — run /yds-setup in Claude Code to fill the stack"
 elif [[ -f "$CLAUDE_MD" && "$FORCE" != "1" ]]; then
-  ST_CLAUDE="kept existing — run /dev-skills-setup in Claude Code to merge the cycle section"
+  ST_CLAUDE="kept existing — run /yds-setup in Claude Code to merge the cycle section"
 else
   primary="$(lang_title "${LANG_ARR[0]}")"
   others=""
@@ -476,7 +476,7 @@ HAS_NODE=0
 NODE_AUDIT_JOB=""
 CI_GENERATED=0
 if [[ "$MINIMAL" == "1" ]]; then
-  ST_CI="skipped (--minimal; CI needs languages — re-run with --langs or use /dev-skills-setup)"
+  ST_CI="skipped (--minimal; CI needs languages — re-run with --langs or use /yds-setup)"
 elif [[ "$NO_CI" == "1" ]]; then
   ST_CI="skipped (--no-ci)"
 else
@@ -668,5 +668,5 @@ cat <<EOF
   protection: $ST_PROTECT
   env guard:  $ST_ENV
   skills:     $ST_SKILLS
-  next:       open the project in Claude Code, then try "/software-evaluation ." — or "/dev-skills-setup" to refine commands interactively
+  next:       open the project in Claude Code, then try "/yds-software-evaluation ." — or "/yds-setup" to refine commands interactively
 EOF

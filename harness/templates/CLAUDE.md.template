@@ -10,14 +10,14 @@ When changes touch only one ecosystem, run that ecosystem's test command, not th
 
 Prefer this loop over ad-hoc one-shot fixes:
 
-1. **Diagnose** — `/software-evaluation`, `/vulnerability-scan`, `/data-validation`
-2. **Register or Draft** — `/report-to-issues` (machine findings) or `/gh-issue-drafter` (rough ideas)
-3. **Plan** — `/gh-issue-planner` (agreed plan comment required before coding)
-4. **Resolve + Verify** — `/gh-issue-resolver`
+1. **Diagnose** — `/yds-software-evaluation`, `/yds-vulnerability-scan`, `/yds-data-validation`
+2. **Register or Draft** — `/yds-report-to-issues` (machine findings) or `/yds-gh-issue-drafter` (rough ideas)
+3. **Plan** — `/yds-gh-issue-planner` (agreed plan comment required before coding)
+4. **Resolve + Verify** — `/yds-gh-issue-resolver`
    - Fixes **regressions only** (max 3 iterations, stays inside the agreed impact scope)
-   - Pre-existing findings → offer `/report-to-issues`, never silent-fix in the same PR
+   - Pre-existing findings → offer `/yds-report-to-issues`, never silent-fix in the same PR
 
-Living docs anytime: `/spec-doc` · Trends: `/progress-dashboard`
+Living docs anytime: `/yds-spec-doc` · Trends: `/yds-progress-dashboard`
 
 ## Hard rules (also enforced by hooks / CI where possible)
 
@@ -27,7 +27,7 @@ Living docs anytime: `/spec-doc` · Trends: `/progress-dashboard`
 - No destructive operations against shared or production environments
   (DB drops/TRUNCATE, infra teardown, bucket deletion) — local and fixtures only,
   unless the user explicitly approves that exact command.
-- Do not widen scope beyond an agreed plan comment from `gh-issue-planner`.
+- Do not widen scope beyond an agreed plan comment from `yds-gh-issue-planner`.
 - CI must pass before merge. Fix the cause upstream; never relax tests, types,
   lint rules, or thresholds to make a check green.
 - Supply chain: pin tool and action versions in CI (no `@latest`).
