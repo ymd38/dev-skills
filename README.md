@@ -65,6 +65,31 @@ are handed to `yds-report-to-issues` instead of being fixed in the same PR.
 
 ## Installation
 
+### Setup by use case
+
+Pick the row that matches your situation — each command is complete as written:
+
+| Use case                                                | Do this                                                                                                                                                              |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New project, languages decided**                      | Full one-liner below with your `--langs`, add `--with-skills`. Then `git init` → first push → Stage 2 of the maturity ladder (`--protect`)                            |
+| **New project, languages not decided yet**              | Minimal one-liner below (rails only) → decide languages later with `/yds-setup` in Claude Code                                                                        |
+| **Existing project**                                    | Full one-liner — existing `CLAUDE.md` / settings / hooks are never overwritten; settings hooks are merged. Then `/yds-setup` to merge the cycle section into your CLAUDE.md |
+| **Skills only, no harness**                             | `npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy` (see [Skills only](#skills-only))                                                          |
+| **Team repo — share with teammates**                    | Install with `--copy` (default in the commands here), then commit `.claude/`, `CLAUDE.md`, and `.github/` — teammates get everything on clone, no install needed       |
+| **Prefer answering questions over flags**               | Install skills first, then run `/yds-setup` in Claude Code — interview-style, writes only after you approve the summary                                                |
+| **Default branch pushed → enforce the gates**           | `curl -fsSL <install.sh URL> \| bash -s -- --langs <yours> --protect` (needs `gh` auth with **repo admin**) — checks become required and actually block merges          |
+| **Update to the latest skills**                         | Re-run the skills install command (existing harness files are kept); for pre-`yds-` installs see the migration note below                                              |
+
+```bash
+# Full one-liner (languages are explicit, never detected)
+curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+  | bash -s -- --langs go,typescript --pm pnpm --with-skills
+
+# Minimal one-liner (rails only)
+curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+  | bash -s -- --minimal
+```
+
 ### Full harness (recommended for new projects)
 
 Skills alone give workflows (L1). The full harness adds mechanical guardrails —
@@ -109,15 +134,7 @@ Installer regression tests: `bash harness/tests/run.sh`.
 | `/yds-setup` in Claude Code | Decide languages and commands interactively (no auto-detection)                 |
 
 ```bash
-# One-liner — full (languages are explicit, never detected)
-curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
-  | bash -s -- --langs go,typescript --pm pnpm --with-skills
-
-# One-liner — minimal (rails only; decide languages later via /yds-setup)
-curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
-  | bash -s -- --minimal
-
-# From a clone
+# From a clone (one-liners: see "Setup by use case" above)
 ./harness/scripts/setup.sh --target /path/to/your-project --langs python --python-pm uv
 ```
 
