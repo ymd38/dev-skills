@@ -10,6 +10,9 @@ name: Security Scan
 on:
   pull_request:
     branches: [{{DEFAULT_BRANCH}}]
+  # Direct pushes to the default branch are scanned too (bypass coverage).
+  push:
+    branches: [{{DEFAULT_BRANCH}}]
   workflow_dispatch:
 
 jobs:

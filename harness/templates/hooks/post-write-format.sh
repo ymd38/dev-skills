@@ -29,8 +29,13 @@ format_py() {
 }
 
 format_js_ts() {
-  if command -v npx >/dev/null 2>&1; then
-    npx --yes prettier --write "$1" >/dev/null 2>&1 || true
+  # Only run a locally-installed, lockfile-pinned Prettier. Never fall back to
+  # `npx --yes`: that downloads and executes unpinned registry code on every edit.
+  local root="${CLAUDE_PROJECT_DIR:-.}"
+  if [[ -x "$root/node_modules/.bin/prettier" ]]; then
+    "$root/node_modules/.bin/prettier" --write "$1" >/dev/null 2>&1 || true
+  elif command -v prettier >/dev/null 2>&1; then
+    prettier --write "$1" >/dev/null 2>&1 || true
   fi
 }
 

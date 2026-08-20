@@ -8,6 +8,12 @@ on:
     paths:
 {{CI_PATHS}}
       - '.github/workflows/ci.yml'
+  # Direct pushes to the default branch are scanned too (bypass coverage).
+  push:
+    branches: [{{DEFAULT_BRANCH}}]
+    paths:
+{{CI_PATHS}}
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 jobs:

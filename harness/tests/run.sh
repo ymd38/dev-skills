@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+# Automated checks for the harness installer and hook templates.
+# Usage: bash harness/tests/run.sh
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SETUP="$ROOT/harness/scripts/setup.sh"
+HOOKS="$ROOT/harness/templates/hooks"
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
+
+PASS=0
+FAIL=0
+ok()   { PASS=$((PASS + 1)); printf 'PASS  %s\n' "$1"; }
+bad()  { FAIL=$((FAIL + 1)); printf 'FAIL  %s\n' "$1"; }
+check() { # $1 description, $2 command (eval'd)
+  if eval "$2" >/dev/null 2>&1; then ok "$1"; else bad "$1"; fi
+}
+
+# ── 1. Full generation (go+ts, pnpm) ─────────
+mkdir -p "$WORK/full"
+bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm >"$WORK/full.out" 2>&1
+for f in CLAUDE.md .claude/settings.json .claude/hooks/post-write-format.sh \
+         .claude/hooks/pre-bash-guard.sh .claude/rules/dev-skills-cycle.md \
+         .github/workflows/ci.yml .github/workflows/security-scan.yml \
+         .gitleaks.toml .semgrepignore .gitignore .env.example; do
+  check "full: $f exists" "[[ -f '$WORK/full/$f' ]]"
+done
+check "full: ci.yml has push trigger"            "grep -q 'push:' '$WORK/full/.github/workflows/ci.yml'"
+check "full: ci.yml is strict (no --if-present)" "! grep -q -- '--if-present' '$WORK/full/.github/workflows/ci.yml'"
+check "full: only trivy is continue-on-error"    "[[ \$(grep -c 'continue-on-error: true' '$WORK/full/.github/workflows/security-scan.yml') -eq 1 ]]"
+check "full: scan has push trigger"              "grep -q 'push:' '$WORK/full/.github/workflows/security-scan.yml'"
+check "full: format hook never invokes npx"      "! grep -Eq '^[^#]*\bnpx\b' '$WORK/full/.claude/hooks/post-write-format.sh'"
+check "full: checklist reports protection state" "grep -q 'protection:' '$WORK/full.out'"
+
+# ── 2. YAML validity (needs python3 + pyyaml) ─
+if python3 -c 'import yaml' >/dev/null 2>&1; then
+  for y in ci.yml security-scan.yml; do
+    check "yaml: $y parses" "python3 -c \"import yaml; yaml.safe_load(open('$WORK/full/.github/workflows/$y'))\""
+  done
+else
+  echo "SKIP  yaml validation (python3/pyyaml unavailable)"
+fi
+
+# ── 3. Idempotent re-run keeps files ─────────
+bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm >"$WORK/rerun.out" 2>&1
+check "rerun: hooks kept"      "grep -q 'installed=0 kept=4' '$WORK/rerun.out'"
+check "rerun: CI kept"         "grep -q 'written=0 kept=4' '$WORK/rerun.out'"
+check "rerun: CLAUDE.md kept"  "grep -q 'kept existing' '$WORK/rerun.out'"
+
+# ── 4. --minimal ─────────────────────────────
+mkdir -p "$WORK/min"
+bash "$SETUP" --target "$WORK/min" --minimal >/dev/null 2>&1
+check "minimal: no CLAUDE.md"  "[[ ! -f '$WORK/min/CLAUDE.md' ]]"
+check "minimal: no .github"    "[[ ! -d '$WORK/min/.github' ]]"
+check "minimal: hooks present" "[[ -f '$WORK/min/.claude/hooks/pre-bash-guard.sh' ]]"
+
+# ── 5. Component opt-outs ────────────────────
+mkdir -p "$WORK/optout"
+bash "$SETUP" --target "$WORK/optout" --langs go --no-ci --no-rules --no-env-guard --no-format-hook >/dev/null 2>&1
+check "optout: no rules"        "[[ ! -f '$WORK/optout/.claude/rules/dev-skills-cycle.md' ]]"
+check "optout: no .env.example" "[[ ! -f '$WORK/optout/.env.example' ]]"
+check "optout: no format hook"  "[[ ! -f '$WORK/optout/.claude/hooks/post-write-format.sh' ]]"
+check "optout: no .github"      "[[ ! -d '$WORK/optout/.github' ]]"
+if command -v jq >/dev/null 2>&1; then
+  check "optout: settings drops format hook entry" \
+    "! jq -e '.hooks.PostToolUse' '$WORK/optout/.claude/settings.json'"
+  check "optout: settings keeps bash guard entry" \
+    "jq -e '.hooks.PreToolUse' '$WORK/optout/.claude/settings.json'"
+fi
+
+# ── 6. settings.json merge preserves user hooks ──
+mkdir -p "$WORK/merge/.claude"
+printf '{"permissions":{"allow":["Bash(ls:*)"]},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo user-hook"}]}]}}\n' \
+  >"$WORK/merge/.claude/settings.json"
+bash "$SETUP" --target "$WORK/merge" --langs go --no-ci >/dev/null 2>&1
+if command -v jq >/dev/null 2>&1; then
+  check "merge: user hook preserved"   "jq -e '.hooks.PreToolUse[].hooks[].command | select(. == \"echo user-hook\")' '$WORK/merge/.claude/settings.json'"
+  check "merge: permissions preserved" "jq -e '.permissions.allow[0] == \"Bash(ls:*)\"' '$WORK/merge/.claude/settings.json'"
+fi
+
+# ── 7. .env guard appends without clobbering ─
+mkdir -p "$WORK/env"
+printf 'node_modules/\n.env\n' >"$WORK/env/.gitignore"
+bash "$SETUP" --target "$WORK/env" --minimal >/dev/null 2>&1
+check "env: original line kept"   "grep -qxF 'node_modules/' '$WORK/env/.gitignore'"
+check "env: .env not duplicated"  "[[ \$(grep -cxF '.env' '$WORK/env/.gitignore') -eq 1 ]]"
+check "env: negation appended"    "grep -qxF '!.env.example' '$WORK/env/.gitignore'"
+
+# ── 8. Bash guard deny/allow matrix ──────────
+guard() { # $1 command string → prints decision or "allowed"
+  local out
+  out=$(printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$1" | jq -Rs .)" | bash "$HOOKS/pre-bash-guard.sh")
+  local d
+  d=$(echo "$out" | jq -r '.hookSpecificOutput.permissionDecision // "allowed"' 2>/dev/null)
+  echo "${d:-allowed}"
+}
+if command -v jq >/dev/null 2>&1; then
+  while IFS='|' read -r expect cmd; do
+    if [[ "$(guard "$cmd")" == "$expect" ]]; then ok "guard: $expect '$cmd'"; else bad "guard: expected $expect for '$cmd'"; fi
+  done <<'CASES'
+deny|rm -rf /
+deny|git push -f origin main
+deny|terraform destroy
+deny|docker system prune -af
+deny|echo x >> .env
+allowed|terraform plan
+allowed|rm -rf node_modules
+allowed|git push origin feature/x
+allowed|kubectl delete pod my-pod
+CASES
+fi
+
+# ── 9. Arg validation ────────────────────────
+check "args: no flags fails"       "! bash '$SETUP' --target '$WORK' >/dev/null 2>&1"
+check "args: bad lang fails"       "! bash '$SETUP' --target '$WORK' --langs rust >/dev/null 2>&1"
+
+echo
+echo "passed=$PASS failed=$FAIL"
+[[ "$FAIL" == "0" ]]

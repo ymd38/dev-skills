@@ -106,9 +106,14 @@ modified. Wait for explicit approval. On approval, apply as follows.
        | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> [--guard-pip] [--with-skills]
      ```
 
-   Map answers to flags: languages (primary first) → `--langs`,
+   Map EVERY Phase 3 answer to a flag — the applied changes must equal the
+   approved summary exactly: languages (primary first) → `--langs`,
    Node PM → `--pm`, Python PM → `--python-pm`, pip guard → `--guard-pip`,
-   skills component ON → `--with-skills`, CI component OFF → `--no-ci`.
+   skills ON → `--with-skills`, CI OFF → `--no-ci`, format hook OFF →
+   `--no-format-hook`, bash guard OFF → `--no-bash-guard`, guidance hooks
+   OFF → `--no-guidance-hooks`, rules OFF → `--no-rules`, .env guard OFF →
+   `--no-env-guard`. If the user wants branch protection applied and `gh`
+   is authenticated with admin rights, add `--protect`.
    The installer never overwrites existing files, which is exactly the
    merge-safe behavior wanted here.
 
@@ -137,11 +142,26 @@ Print a final checklist:
 [dev-skills harness]
   skills:     OK (N) / MISSING
   CLAUDE.md:  CREATED / MERGED / SKIPPED
-  hooks:      OK (4 scripts, executable)
+  hooks:      OK (selected scripts, executable)
   settings:   OK / MERGED / needs manual merge
   rules:      OK / skipped
+  CI:         OK / skipped
+  protection: configured / NOT CONFIGURED / applied
   next:       restart Claude Code to load hooks, then try /software-evaluation .
 ```
+
+Two follow-ups matter for the gates to actually gate:
+
+- **Branch protection.** A CI check only blocks merges once it is a
+  required status check. The installer reports the state; if it says
+  NOT CONFIGURED, treat setup as incomplete and either re-run with
+  `--protect` (needs `gh` auth + admin + a pushed default branch) or walk
+  the user through GitHub settings. Do not report overall success while
+  protection is unconfigured — report it as an explicit remaining step.
+- **Strict CI.** The generated jobs intentionally fail when lint /
+  typecheck / test scripts (or any tests) are missing. Tell the user the
+  first code PR must land with those in place — that is the shift-left
+  contract, not a bug.
 
 Remind the user that hooks load at session start — a restart (or new
 session) is needed before the guard/format hooks take effect.

@@ -74,12 +74,22 @@ and the continuous improvement cycle is the default path (L2–L3).
 
 With `--langs`, the installer also generates:
 
-- `.github/workflows/ci.yml` — per-language jobs (Go: tidy-check / build / `test -race` / pinned golangci-lint; Node: frozen-lockfile install / lint / typecheck / test; Python: ruff / pytest)
-- `.github/workflows/security-scan.yml` — gitleaks + semgrep as hard gates from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit
+- `.github/workflows/ci.yml` — per-language jobs (Go: tidy-check / build / `test -race` / pinned golangci-lint; Node: frozen-lockfile install / lint / typecheck / test; Python: ruff / pytest). **Strict by design**: a missing lint/typecheck/test script — or zero tests — fails the job, so verification lands with the first code PR
+- `.github/workflows/security-scan.yml` — gitleaks + semgrep gating from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit. Both workflows also run on direct pushes to the default branch
 - `.gitleaks.toml` and `.semgrepignore` with a smallest-unit-only allowlist policy
 - `.env.example` and `.gitignore` entries for `.env`
 
-Disable with `--no-ci`. Tool and action versions are pinned (no `@latest`).
+Disable with `--no-ci`; skip individual components with `--no-format-hook` /
+`--no-bash-guard` / `--no-guidance-hooks` / `--no-rules` / `--no-env-guard`.
+CI tool and action versions are pinned (no `@latest`); the local format hook
+only runs project-installed formatters and never downloads code.
+
+**Checks gate merges only when branch protection marks them required.** The
+installer reports the protection state in its checklist; pass `--protect`
+(needs `gh` auth with admin on a pushed default branch) to apply required
+status checks automatically, or configure them in GitHub settings.
+
+Installer regression tests: `bash harness/tests/run.sh`.
 
 | Entry point                        | When to use                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------- |
