@@ -133,15 +133,19 @@ Supported languages: Go, Python, TypeScript, JavaScript. Run `setup.sh --help` f
 #### Option 1: CLI Install (Recommended)
 
 ```bash
-npx skills add ymd38/dev-skills
+# All skills, non-interactive, copied into .claude/skills/
+npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
 ```
 
-This automatically installs all skills to your project's `.claude/skills/` directory.
+> Running plain `npx skills add ymd38/dev-skills` opens an interactive picker
+> where **nothing is pre-selected** — press Space to select skills before Enter,
+> or use the flags above. `--copy` copies files instead of symlinking, so the
+> skills can be committed and shared with your team.
 
 To install a single skill:
 
 ```bash
-npx skills add ymd38/dev-skills --skill yds-spec-doc
+npx skills add ymd38/dev-skills --skill yds-spec-doc --agent claude-code -y --copy
 ```
 
 #### Option 2: Manual Copy

@@ -76,7 +76,7 @@ confirm of the defaults is enough. Propose these defaults:
 ### Phase 3 — Harness scope
 
 - **Q-H1. Components** (multi-select, all recommended ON by default):
-  CLAUDE.md / skills (`npx skills add ymd38/dev-skills`) /
+  CLAUDE.md / skills (`npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`) /
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
   `.claude/rules/dev-skills-cycle.md` /
   GitHub Actions CI (`ci.yml` per language + `security-scan.yml` +
