@@ -13,8 +13,9 @@ mechanical guardrails (hooks) and a lean CLAUDE.md.
 
 Skills alone are L1. This setup adds L2–L3: a short project brain
 (CLAUDE.md), hard rails (hooks + settings), and cycle guidance (rules).
-It never creates scheduled loops or CI automation (L4) — that is out of
-scope unless the user explicitly asks in a separate task.
+It never creates scheduled or cron-driven automation (L4); event-driven
+GitHub Actions — strict CI and the opt-in PR Agent review — are L2–L3 and
+in scope.
 
 ## Principles
 
@@ -98,7 +99,7 @@ confirm of the defaults is enough. Propose these defaults:
 
 ### Phase 3 — Harness scope
 
-- **Q-H1. Components** (multi-select, all recommended ON by default):
+- **Q-H1. Components** (multi-select, every entry recommended ON by default):
   CLAUDE.md / skills (`npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`) /
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
   `.claude/rules/` (cycle contract + score-aligned coding principles +
@@ -108,6 +109,13 @@ confirm of the defaults is enough. Propose these defaults:
   gates from day one — shift-left — while trivy starts as informational
   `continue-on-error`) /
   .env guard (`.gitignore` entries + `.env.example`).
+- **Q-H1b. Optional paid add-on** (default OFF; independent of the CI
+  answer — it composes with a project's existing CI): PR Agent
+  (`.github/workflows/pr-agent.yml` + `.pr_agent.toml`; advisory
+  qodo-ai/pr-agent review — describe / review / improve when a PR opens,
+  `/review` on each push, slash commands for repository members). Needs an
+  `OPENAI_KEY` repository secret and API billing; it is advice, never a
+  required status check.
 - **Q-H2. Per existing file**: merge (append only the missing sections) /
   back up then replace / skip.
 - **Q-H3. Bash guard strength**: standard (rm -rf /, force-push to the
@@ -127,7 +135,7 @@ modified. Wait for explicit approval. On approval, apply as follows.
 
      ```bash
      curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
-       | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> [--guard-pip] [--with-skills]
+       | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> [--guard-pip] [--with-skills] [--pr-agent]
      ```
 
    Map EVERY Phase 3 answer to a flag — the applied changes must equal the
@@ -136,7 +144,8 @@ modified. Wait for explicit approval. On approval, apply as follows.
    skills ON → `--with-skills`, CI OFF → `--no-ci`, format hook OFF →
    `--no-format-hook`, bash guard OFF → `--no-bash-guard`, guidance hooks
    OFF → `--no-guidance-hooks`, rules OFF → `--no-rules`, .env guard OFF →
-   `--no-env-guard`. If the user wants branch protection applied and `gh`
+   `--no-env-guard`, PR Agent ON → `--pr-agent` (allowed with `--no-ci`,
+   never with `--minimal`). If the user wants branch protection applied and `gh`
    is authenticated with admin rights, add `--protect`.
    The installer never overwrites existing files, which is exactly the
    merge-safe behavior wanted here.
@@ -175,6 +184,7 @@ Print a final checklist:
   rules:      OK / skipped
   CI:         OK / skipped
   protection: configured / NOT CONFIGURED / applied
+  pr-agent:   disabled / written (OPENAI_KEY secret required)
   next:       restart Claude Code to load hooks, then try /yds-software-evaluation .
 ```
 
@@ -191,6 +201,11 @@ Two follow-ups matter for the gates to actually gate:
   first code PR must land with those in place — that is the shift-left
   contract, not a bug.
 
+- **PR Agent secret.** If `--pr-agent` was applied, the `PR Agent` workflow
+  fails on every PR until the `OPENAI_KEY` repository secret exists. Report
+  it as an explicit remaining step; it is advisory and must never be added
+  to required status checks.
+
 Remind the user that hooks load at session start — a restart (or new
 session) is needed before the guard/format hooks take effect.
 
@@ -204,6 +219,7 @@ session) is needed before the guard/format hooks take effect.
 
 ## Non-goals
 
-- No scheduled loops, cron, or GitHub Actions (L4) — separate task only.
+- No scheduled loops or cron (L4) — separate task only. Event-driven GitHub
+  Actions (CI, PR Agent) are in scope.
 - No Semgrep / gh installation — mention prerequisites, don't install.
 - No rewriting of existing architecture docs or unrelated refactors.
