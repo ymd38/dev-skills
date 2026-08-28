@@ -153,6 +153,63 @@ bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm --force >/de
 check "force: overwrites drifted files"  "! grep -q 'local tweak' '$WORK/full/.claude/hooks/pre-bash-guard.sh'"
 check "force: clears stale .new files"   "[[ ! -f '$WORK/full/.claude/hooks/pre-bash-guard.sh.new' && ! -f '$WORK/full/.github/workflows/ci.yml.new' ]]"
 
+# ── 8.7 PR Agent (opt-in, advisory) ──────────
+PA="$WORK/pragent"; mkdir -p "$PA"
+PAW="$PA/.github/workflows/pr-agent.yml"
+check "pr-agent: absent by default"            "[[ ! -f '$WORK/full/.github/workflows/pr-agent.yml' && ! -f '$WORK/full/.pr_agent.toml' ]]"
+check "pr-agent: --minimal --pr-agent fails"   "! bash '$SETUP' --target '$PA' --minimal --pr-agent >/dev/null 2>&1"
+bash "$SETUP" --target "$PA" --langs go --pr-agent >"$WORK/pragent.out" 2>&1
+check "pr-agent: workflow + toml written"      "[[ -f '$PAW' && -f '$PA/.pr_agent.toml' ]]"
+check "pr-agent: own status row, secret named" "grep -q 'pr-agent:   written=2 kept=0 proposed=0.*OPENAI_KEY' '$WORK/pragent.out'"
+check "pr-agent: CI count stays 4"             "grep -q 'written=4 kept=0 proposed=0 (ci.yml' '$WORK/pragent.out'"
+check "pr-agent: action pinned to tag SHA"     "grep -Eq 'uses: qodo-ai/pr-agent@[0-9a-f]{40} # v[0-9.]+' '$PAW'"
+check "pr-agent: pull_request, never _target"  "grep -q '^  pull_request:' '$PAW' && ! grep -q 'pull_request_target' '$PAW'"
+check "pr-agent: no workflow_run gate"         "! grep -q 'workflow_run' '$PAW'"
+check "pr-agent: branch filter rendered"       "grep -q 'branches: \[main\]' '$PAW'"
+check "pr-agent: draft + fork guards"          "grep -q 'pull_request.draft == false' '$PAW' && grep -q 'head.repo.full_name == github.repository' '$PAW'"
+check "pr-agent: slash cmd allowlist + prefix" "grep -q 'startsWith(github.event.comment.body' '$PAW' && grep -q '\"OWNER\",\"MEMBER\",\"COLLABORATOR\"' '$PAW'"
+check "pr-agent: concurrency split by event"   "grep -q 'group: pr-agent-.*github.event_name' '$PAW' && grep -q 'cancel-in-progress: .*github.event_name == ' '$PAW'"
+check "pr-agent: least-privilege permissions"  "grep -q '^  contents: read' '$PAW' && ! grep -q 'contents: write' '$PAW' && grep -q 'pull-requests: write' '$PAW'"
+check "pr-agent: both jobs have timeouts"      "[[ \$(grep -c 'timeout-minutes:' '$PAW') -eq 2 ]]"
+check "pr-agent: model lives in toml only"     "grep -q '^model = \"gpt-5.3-codex\"' '$PA/.pr_agent.toml' && ! grep -q 'config.model' '$PAW' && ! grep -q '^custom_model_max_tokens' '$PA/.pr_agent.toml'"
+check "pr-agent: pushes re-run /review only"   "grep -q '^handle_push_trigger = true' '$PA/.pr_agent.toml' && grep -q '^push_commands = \[\"/review\"\]' '$PA/.pr_agent.toml' && ! grep -q 'pr_actions = .*synchronize' '$PA/.pr_agent.toml'"
+check "pr-agent: checklist has secret step"    "grep -q 'OPENAI_KEY' '$PA/docs/harness-checklist.md'"
+if python3 -c 'import yaml' >/dev/null 2>&1; then
+  check "yaml: pr-agent.yml parses" "python3 -c \"import yaml; yaml.safe_load(open('$PAW'))\""
+fi
+if python3 -c 'import tomllib' >/dev/null 2>&1; then
+  check "toml: .pr_agent.toml parses" "python3 -c \"import tomllib; tomllib.load(open('$PA/.pr_agent.toml','rb'))\""
+fi
+bash "$SETUP" --target "$PA" --langs go --pr-agent >"$WORK/pragent-rerun.out" 2>&1
+check "pr-agent: rerun keeps both"             "grep -q 'pr-agent:   written=0 kept=2 proposed=0' '$WORK/pragent-rerun.out'"
+echo "# local tweak" >>"$PA/.pr_agent.toml"
+bash "$SETUP" --target "$PA" --langs go --pr-agent >"$WORK/pragent-drift.out" 2>&1
+check "pr-agent: drift proposes .new"          "[[ -f '$PA/.pr_agent.toml.new' ]] && grep -q 'pr-agent:   written=0 kept=1 proposed=1' '$WORK/pragent-drift.out'"
+PANC="$WORK/pragent-noci"; mkdir -p "$PANC"
+bash "$SETUP" --target "$PANC" --langs go --no-ci --pr-agent >/dev/null 2>&1
+check "pr-agent: composes with --no-ci"        "[[ -f '$PANC/.github/workflows/pr-agent.yml' && ! -f '$PANC/.github/workflows/ci.yml' ]]"
+check "pr-agent: --no-ci checklist is PA-only" "grep -q 'OPENAI_KEY' '$PANC/docs/harness-checklist.md' && ! grep -q 'trivy' '$PANC/docs/harness-checklist.md'"
+printf '# mine\n' >"$PANC/docs/harness-checklist.md"
+bash "$SETUP" --target "$PANC" --langs go --no-ci --pr-agent >/dev/null 2>&1
+check "pr-agent: existing checklist appended"  "grep -q '^# mine' '$PANC/docs/harness-checklist.md' && grep -q 'OPENAI_KEY' '$PANC/docs/harness-checklist.md'"
+# --protect must never require the advisory job: a fake gh captures the payload.
+PAP="$WORK/pragent-protect"; mkdir -p "$PAP/bin" "$PAP/target"
+cat >"$PAP/bin/gh" <<'GH'
+#!/usr/bin/env bash
+# fake gh for tests: answers repo view, records the branch-protection PUT payload
+case "$*" in
+  "repo view --json nameWithOwner -q .nameWithOwner") echo "acme/demo" ;;
+  "api -X PUT "*" --input "*) cp "${@: -1}" "$FAKE_GH_PAYLOAD" ;;
+  *) exit 0 ;;
+esac
+GH
+chmod +x "$PAP/bin/gh"
+(cd "$PAP/target" && git init -q && git remote add origin https://example.invalid/acme/demo.git)
+FAKE_GH_PAYLOAD="$PAP/payload.json" PATH="$PAP/bin:$PATH" \
+  bash "$SETUP" --target "$PAP/target" --langs go --pr-agent --protect >"$WORK/pragent-protect.out" 2>&1
+check "pr-agent: --protect payload captured"   "[[ -s '$PAP/payload.json' ]] && grep -q 'protection: applied' '$WORK/pragent-protect.out'"
+check "pr-agent: never a required check"       "! grep -q 'PR Agent' '$PAP/payload.json' && grep -q 'SAST (Semgrep)' '$PAP/payload.json'"
+
 # ── 9. Arg validation ────────────────────────
 check "args: no flags fails"       "! bash '$SETUP' --target '$WORK' >/dev/null 2>&1"
 check "args: bad lang fails"       "! bash '$SETUP' --target '$WORK' --langs rust >/dev/null 2>&1"
