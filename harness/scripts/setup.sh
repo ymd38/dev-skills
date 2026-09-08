@@ -31,6 +31,7 @@ Options:
   --no-guidance-hooks  Skip the SessionStart / Stop guidance hooks
   --no-rules        Skip .claude/rules/dev-skills-cycle.md
   --no-env-guard    Skip .gitignore/.env.example handling
+  --pr-agent        Add the advisory PR Agent workflow (qodo-ai/pr-agent; needs the OPENAI_KEY secret; never a required check)
   --protect         Apply branch protection (required status checks) via gh CLI
   --with-skills     Also run: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
   --force           Overwrite existing files (default: keep existing)
@@ -41,6 +42,8 @@ With --langs, GitHub Actions workflows (ci.yml, security-scan.yml) and
 --no-ci skip them. Generated checks only gate merges once branch protection
 marks them required — pass --protect (needs gh auth + admin) or configure it
 in GitHub settings; the final checklist reports the current state.
+--pr-agent adds .github/workflows/pr-agent.yml + .pr_agent.toml (advisory AI
+review, opt-in; composes with --no-ci, not with --minimal).
 EOF
 }
 
@@ -60,6 +63,7 @@ NO_GUIDANCE_HOOKS=0
 NO_RULES=0
 NO_ENV_GUARD=0
 PROTECT=0
+PR_AGENT=0
 WITH_SKILLS=0
 FORCE=0
 
@@ -80,6 +84,7 @@ while [[ $# -gt 0 ]]; do
     --no-rules)          NO_RULES=1; shift ;;
     --no-env-guard)      NO_ENV_GUARD=1; shift ;;
     --protect)           PROTECT=1; shift ;;
+    --pr-agent)          PR_AGENT=1; shift ;;
     --with-skills) WITH_SKILLS=1; shift ;;
     --force)      FORCE=1; shift ;;
     -h|--help)    usage; exit 0 ;;
@@ -90,6 +95,11 @@ done
 if [[ -z "$LANGS" && "$MINIMAL" != "1" ]]; then
   echo "error: --langs is required (e.g. --langs go,typescript), or pass --minimal" >&2
   usage >&2
+  exit 1
+fi
+
+if [[ "$PR_AGENT" == "1" && "$MINIMAL" == "1" ]]; then
+  echo "error: --pr-agent cannot be combined with --minimal (minimal installs nothing under .github; use --langs, optionally with --no-ci)" >&2
   exit 1
 fi
 
@@ -560,6 +570,24 @@ EOF
   esac
 }
 
+# Shared by the CI and PR Agent workflow templates.
+CI_PATHS="" CI_JOBS="" SEMGREP_CONFIGS=""
+render_workflow() { # $1: template, $2: destination
+  local line
+  while IFS= read -r line; do
+    case "$line" in
+      "{{CI_PATHS}}")             printf '%s' "$CI_PATHS" ;;
+      "{{CI_JOBS}}")              printf '%s' "$CI_JOBS" ;;
+      "{{SEMGREP_LANG_CONFIGS}}") printf '%s' "$SEMGREP_CONFIGS" ;;
+      "{{NODE_AUDIT_JOB}}")       if [[ -n "$NODE_AUDIT_JOB" ]]; then printf '%s\n' "$NODE_AUDIT_JOB"; fi ;;
+      *)
+        line=${line//\{\{DEFAULT_BRANCH\}\}/$BRANCH}
+        printf '%s\n' "$line"
+        ;;
+    esac
+  done <"$1" >"$2"
+}
+
 HAS_NODE=0
 NODE_AUDIT_JOB=""
 CI_GENERATED=0
@@ -627,22 +655,6 @@ else
     fi
   fi
 
-  render_workflow() { # $1: template, $2: destination
-    local line
-    while IFS= read -r line; do
-      case "$line" in
-        "{{CI_PATHS}}")             printf '%s' "$CI_PATHS" ;;
-        "{{CI_JOBS}}")              printf '%s' "$CI_JOBS" ;;
-        "{{SEMGREP_LANG_CONFIGS}}") printf '%s' "$SEMGREP_CONFIGS" ;;
-        "{{NODE_AUDIT_JOB}}")       if [[ -n "$NODE_AUDIT_JOB" ]]; then printf '%s\n' "$NODE_AUDIT_JOB"; fi ;;
-        *)
-          line=${line//\{\{DEFAULT_BRANCH\}\}/$BRANCH}
-          printf '%s\n' "$line"
-          ;;
-      esac
-    done <"$1" >"$2"
-  }
-
   ci_written=0 ci_kept=0 ci_proposed=0
   ci_count() {
     case "$INSTALL_RESULT" in
@@ -660,6 +672,28 @@ else
   install_file "$TEMPLATES/github/gitleaks.toml" "$TARGET/.gitleaks.toml"; ci_count
   install_file "$TEMPLATES/github/semgrepignore" "$TARGET/.semgrepignore"; ci_count
   ST_CI="written=$ci_written kept=$ci_kept proposed=$ci_proposed (ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore)"
+fi
+
+# ── PR Agent (advisory AI review, opt-in) ─────
+# Tracked separately from CI on purpose: CI is verification infrastructure,
+# PR Agent is advice. It composes with --no-ci (projects with their own CI).
+ST_PRAGENT="disabled (opt-in: --pr-agent; advisory qodo-ai/pr-agent review)"
+if [[ "$PR_AGENT" == "1" ]]; then
+  mkdir -p "$TARGET/.github/workflows"
+  pa_written=0 pa_kept=0 pa_proposed=0
+  pa_count() {
+    case "$INSTALL_RESULT" in
+      installed) pa_written=$((pa_written + 1)) ;;
+      kept)      pa_kept=$((pa_kept + 1)) ;;
+      proposed)  pa_proposed=$((pa_proposed + 1)) ;;
+    esac
+  }
+  tmp_pa="$(mktemp)"
+  render_workflow "$TEMPLATES/github/pr-agent.yml" "$tmp_pa"
+  install_file "$tmp_pa" "$TARGET/.github/workflows/pr-agent.yml"; pa_count
+  rm -f "$tmp_pa"
+  install_file "$TEMPLATES/github/pr_agent.toml" "$TARGET/.pr_agent.toml"; pa_count
+  ST_PRAGENT="written=$pa_written kept=$pa_kept proposed=$pa_proposed (pr-agent.yml, .pr_agent.toml) — OPENAI_KEY secret REQUIRED; advisory, never a required check"
 fi
 
 # ── .env guard ───────────────────────────────
@@ -685,11 +719,19 @@ ST_ENV="$env_notes"
 fi
 
 # ── Post-setup checklist (docs/harness-checklist.md) ──
-ST_CHECKLIST="skipped (no CI generated)"
-if [[ "$CI_GENERATED" == "1" ]]; then
+pr_agent_checklist_items() {
+  echo "- [ ] PR Agent: add the repository secret \`OPENAI_KEY\` (Settings → Secrets and variables → Actions) — until set, the \`PR Agent\` workflow fails on every PR (advisory only, never a required check)"
+  echo "- [ ] PR Agent: review \`.pr_agent.toml\` — \`auto_describe\` rewrites the PR body on open; pushes re-run only \`/review\`"
+}
+ST_CHECKLIST="skipped (no CI or PR Agent generated)"
+if [[ "$CI_GENERATED" == "1" || "$PR_AGENT" == "1" ]]; then
   CHECKLIST="$TARGET/docs/harness-checklist.md"
   if [[ -f "$CHECKLIST" && "$FORCE" != "1" ]]; then
     ST_CHECKLIST="kept existing"
+    if [[ "$PR_AGENT" == "1" ]] && ! grep -q OPENAI_KEY "$CHECKLIST"; then
+      { echo; pr_agent_checklist_items; } >>"$CHECKLIST"
+      ST_CHECKLIST="kept existing (+ PR Agent items appended)"
+    fi
   else
     mkdir -p "$TARGET/docs"
     lockfile=""
@@ -705,8 +747,12 @@ if [[ "$CI_GENERATED" == "1" ]]; then
       echo "Generated by dev-skills setup. CI is strict by design — these are the"
       echo "manual steps that turn it green and make the gates actually gate."
       echo
-      echo "- [ ] Commit \`.claude/\`, \`CLAUDE.md\`, \`.github/\`, \`.gitleaks.toml\`, \`.semgrepignore\` and push \`$BRANCH\`"
+      commit_list="\`.claude/\`, \`CLAUDE.md\`, \`.github/\`"
+      [[ "$CI_GENERATED" == "1" ]] && commit_list="$commit_list, \`.gitleaks.toml\`, \`.semgrepignore\`"
+      [[ "$PR_AGENT" == "1" ]] && commit_list="$commit_list, \`.pr_agent.toml\`"
+      echo "- [ ] Commit $commit_list and push \`$BRANCH\`"
       echo "- [ ] If re-running setup produced \`*.new\` files: diff, merge, delete them"
+      if [[ "$CI_GENERATED" == "1" ]]; then
       if has_lang go; then
         echo "- [ ] Go: \`go mod init <module>\` and commit \`go.mod\` (CI fails without it)"
       fi
@@ -723,6 +769,8 @@ if [[ "$CI_GENERATED" == "1" ]]; then
       fi
       echo "- [ ] After the first push: \`setup.sh --protect\` (requires repo ADMIN) so checks become required and actually block merges"
       echo "- [ ] Review trivy findings; once triaged, delete \`continue-on-error: true\` in \`security-scan.yml\` (maturity Stage 1)"
+      fi
+      if [[ "$PR_AGENT" == "1" ]]; then pr_agent_checklist_items; fi
       echo "- [ ] Restart Claude Code so the hooks load"
       echo "- [ ] Adjust CLAUDE.md commands if the defaults don't match your project"
       echo
@@ -758,6 +806,8 @@ if [[ "$CI_GENERATED" == "1" ]]; then
     if [[ -z "$repo_slug" ]]; then
       ST_PROTECT="unknown (gh cannot resolve the repository — check gh auth status)"
     elif [[ "$PROTECT" == "1" ]]; then
+      # Advisory jobs (PR Agent) are deliberately never required: a missing API
+      # secret or a vendor outage must not block merges.
       contexts=""
       has_lang go && contexts="${contexts:+$contexts,}\"Go (build, test, lint)\""
       [[ "$HAS_NODE" == "1" ]] && contexts="${contexts:+$contexts,}\"Node (lint, typecheck, test)\""
@@ -799,6 +849,7 @@ cat <<EOF
   CI:         $ST_CI
   checklist:  $ST_CHECKLIST
   protection: $ST_PROTECT
+  pr-agent:   $ST_PRAGENT
   env guard:  $ST_ENV
   skills:     $ST_SKILLS
   updates:    $UPDATES_LINE

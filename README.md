@@ -78,6 +78,7 @@ Pick the row that matches your situation — each command is complete as written
 | **Team repo — share with teammates**                    | Install with `--copy` (default in the commands here), then commit `.claude/`, `CLAUDE.md`, and `.github/` — teammates get everything on clone, no install needed       |
 | **Prefer answering questions over flags**               | Install skills first, then run `/yds-setup` in Claude Code — interview-style, writes only after you approve the summary                                                |
 | **Default branch pushed → enforce the gates**           | `curl -fsSL <install.sh URL> \| bash -s -- --langs <yours> --protect` (needs `gh` auth with **repo admin**) — checks become required and actually block merges          |
+| **Add AI PR review (PR Agent)**                         | Full one-liner plus `--pr-agent` (or `--no-ci --pr-agent` if you already have CI), then add the `OPENAI_KEY` repository secret. Advisory only — never a required check |
 | **Update to the latest skills / harness**               | Re-run the install command — changed harness files appear as `<file>.new` for manual merge, nothing is overwritten; for pre-`yds-` installs see the migration note below |
 
 ```bash
@@ -103,11 +104,13 @@ With `--langs`, the installer also generates:
 - `docs/harness-checklist.md` — the manual steps that turn strict CI green (add scripts, first test, commit lockfile, branch protection, promote trivy); delete it when done
 - `.github/workflows/security-scan.yml` — gitleaks + semgrep gating from day one (shift-left), trivy staged as `continue-on-error`, Node production-dependency audit. Both workflows also run on direct pushes to the default branch
 - `.gitleaks.toml` and `.semgrepignore` with a smallest-unit-only allowlist policy
+- With `--pr-agent`: `.github/workflows/pr-agent.yml` and `.pr_agent.toml` — advisory AI review via [qodo-ai/pr-agent](https://github.com/qodo-ai/pr-agent) (describe / review / improve when a PR opens, `/review` on each push, slash commands for repository members; action pinned to a release-tag SHA). Opt-in because it needs an `OPENAI_KEY` secret and API billing; **never a required check**, and it composes with `--no-ci` for projects that already have CI
 - `.env.example` and `.gitignore` entries for `.env`
 - `.claude/rules/` — the cycle contract, **score-aligned coding principles** (KISS / YAGNI plus the five evaluation pillars inverted into "write it right the first time" rules), and per-language best practices (`go.md` / `python.md` / `typescript.md`, installed per `--langs`). Each rule is tagged with the `yds-software-evaluation` pillar it scores on; the security rules preempt `yds-vulnerability-scan` findings
 
 Disable with `--no-ci`; skip individual components with `--no-format-hook` /
-`--no-bash-guard` / `--no-guidance-hooks` / `--no-rules` / `--no-env-guard`.
+`--no-bash-guard` / `--no-guidance-hooks` / `--no-rules` / `--no-env-guard`;
+add the advisory PR Agent with `--pr-agent`.
 CI tool and action versions are pinned (no `@latest`); the local format hook
 only runs project-installed formatters and never downloads code.
 
@@ -126,6 +129,9 @@ The defaults are day-one settings. Promote gates as the project matures:
 | **1 — Deps triaged**      | Trivy findings reviewed, unfixable ones in `.trivyignore` with reasons | Delete the `continue-on-error: true` line in `security-scan.yml` — trivy becomes a hard gate                             |
 | **2 — Enforced**          | Default branch pushed, repo admin available                | `setup.sh --protect` (or GitHub settings) — checks become required status checks, force-push/deletion blocked            |
 | **3 — Tightened**         | Team cadence stable, few false positives                   | Raise `--audit-level` to `moderate`, add stricter Semgrep rulesets (e.g. `p/cwe-top-25`), consider `strict: true` reviews |
+
+PR Agent (`--pr-agent`) sits outside the ladder on purpose: it is advice, not
+a gate, and `--protect` never adds it to the required checks.
 
 Installer regression tests: `bash harness/tests/run.sh`.
 
